@@ -1,0 +1,17 @@
+vendor/
+.env
+.env.local
+*.log
+node_modules/
+.DS_Store
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+*.iml
+storage/
+debug-*.php
+test-*.php
+/dist
+/build

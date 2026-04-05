@@ -1,0 +1,22 @@
+<IfModule mod_rewrite.c">
+    RewriteEngine On
+    RewriteBase /teacher-eval/
+
+    # Handle OPTIONS requests (preflight)
+    RewriteCond %{REQUEST_METHOD} ^OPTIONS$ [NC]
+    RewriteRule ^(.*)$ - [L]
+
+    # Don't rewrite if it's a real file
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^(.*)$ - [L]
+    
+    # Don't rewrite if it's a real directory
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^(.*)$ - [L]
+    
+    # Allow direct access to .php files in /api/ directory
+    RewriteRule ^api/.*\.php$ - [L]
+
+    # Route everything else to index.php
+    RewriteRule ^(.*)$ index.php?request=$1 [QSA,L]
+</IfModule>

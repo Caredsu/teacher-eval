@@ -1,0 +1,255 @@
+{
+  "info": {
+    "_postman_id": "teacher-eval-api-collection",
+    "name": "Teacher Evaluation System API",
+    "description": "Complete API collection for Teacher Evaluation System",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.environment.set('token', jsonData.data.token);",
+                  "    pm.environment.set('user_id', jsonData.data.user.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin123\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost/teacher-eval/api/login",
+              "protocol": "http",
+              "host": ["localhost"],
+              "path": ["teacher-eval", "api", "login"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Teachers",
+      "item": [
+        {
+          "name": "Get All Teachers",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost/teacher-eval/api/teachers",
+              "protocol": "http",
+              "host": ["localhost"],
+              "path": ["teacher-eval", "api", "teachers"]
+            }
+          }
+        },
+        {
+          "name": "Add New Teacher",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.environment.set('teacher_id', jsonData.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstname\": \"James\",\n  \"lastname\": \"Wilson\",\n  \"middlename\": \"Patrick\",\n  \"department\": \"EDUC\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost/teacher-eval/api/teachers",
+              "protocol": "http",
+              "host": ["localhost"],
+              "path": ["teacher-eval", "api", "teachers"]
+            }
+          }
+        },
+        {
+          "name": "Update Teacher",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstname\": \"James\",\n  \"lastname\": \"Wilson\",\n  \"department\": \"CCJE\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost/teacher-eval/api/teachers/{{teacher_id}}",
+              "protocol": "http",
+              "host": ["localhost"],
+              "path": ["teacher-eval", "api", "teachers", "{{teacher_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Teacher",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost/teacher-eval/api/teachers/{{teacher_id}}",
+              "protocol": "http",
+              "host": ["localhost"],
+              "path": ["teacher-eval", "api", "teachers", "{{teacher_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Evaluations",
+      "item": [
+        {
+          "name": "Submit Evaluation (Anonymous)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"teacher_id\": \"{{teacher_id}}\",\n  \"ratings\": {\n    \"teaching\": 5,\n    \"communication\": 4,\n    \"knowledge\": 5\n  },\n  \"feedback\": \"Excellent instruction with clear explanations and engaging teaching methods. The instructor responds well to student questions and makes complex topics easy to understand.\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost/teacher-eval/api/evaluations",
+              "protocol": "http",
+              "host": ["localhost"],
+              "path": ["teacher-eval", "api", "evaluations"]
+            }
+          }
+        },
+        {
+          "name": "Get Teacher Evaluations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost/teacher-eval/api/evaluations/{{teacher_id}}",
+              "protocol": "http",
+              "host": ["localhost"],
+              "path": ["teacher-eval", "api", "evaluations", "{{teacher_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Departments",
+      "item": [
+        {
+          "name": "Get All Departments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost/teacher-eval/api/departments",
+              "protocol": "http",
+              "host": ["localhost"],
+              "path": ["teacher-eval", "api", "departments"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Documentation",
+      "item": [
+        {
+          "name": "API Documentation",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost/teacher-eval/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "path": ["teacher-eval", ""]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "teacher_id",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}
