@@ -121,28 +121,34 @@ try {
 
         // Get session identifier (IP address as proxy for session)
         $sessionIdentifier = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+        $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? '';
 
-        // Check for any previous evaluation from same session for this teacher (permanent block)
+        // Check for any previous evaluation from same device for this teacher (permanent block)
         $existingEvaluation = $evaluations_collection->findOne([
             'teacher_id' => $teacherObjectId,
-            'session_identifier' => $sessionIdentifier
+            'ip_address' => $sessionIdentifier,
+            'user_agent' => $userAgent
         ]);
 
         if ($existingEvaluation) {
-            sendError('You have already submitted an evaluation for this teacher', 400);
+            sendError('You have already submitted an evaluation for this teacher from your device. Each teacher can only be evaluated once per device.', 400);
         }
 
-        // Insert evaluation with new format
-        $result = $evaluations_collection->insertOne([
+        // Use Evaluation model to save with semester/year tracking
+        require_once __DIR__ . '/../app/Models/Evaluation.php';
+        $evaluationModel = new \App\Models\Evaluation($evaluations_collection);
+        
+        $evaluationId = $evaluationModel->create([
             'teacher_id' => $teacherObjectId,
             'answers' => $answers,
             'feedback' => $feedback,
-            'session_identifier' => $sessionIdentifier,
-            'submitted_at' => new MongoDB\BSON\UTCDateTime(time() * 1000)
+            'ip_address' => $sessionIdentifier,
+            'user_agent' => $userAgent,
+            'session_identifier' => $sessionIdentifier  // For quick lookups
         ]);
 
         sendSuccess([
-            'id' => objectIdToString($result->getInsertedId()),
+            'id' => objectIdToString($evaluationId),
             'teacher_id' => $teacherId,
             'submitted_at' => date('Y-m-d H:i:s')
         ], 'Evaluation submitted successfully', 201);

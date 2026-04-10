@@ -35,30 +35,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $admin = $admins_collection->findOne(['username' => $username]);
                 
                 if ($admin && verifyPassword($password, $admin['password'])) {
-                    // Check if user role matches selected role
-                    $user_role = $admin['role'] ?? 'admin';
-                    
-                    if ($user_role !== $selected_role) {
-                        // User exists but role doesn't match
-                        $error = "This account is registered as " . ucfirst($user_role) . ". Please select the correct role.";
-                        logActivity('LOGIN_FAILED', 'Role mismatch for user: ' . $username . ' (selected: ' . $selected_role . ', actual: ' . $user_role . ')');
+                    // Check if user is active
+                    $user_status = $admin['status'] ?? 'active';
+                    if ($user_status !== 'active') {
+                        $error = 'Your account has been deactivated. Please contact an administrator.';
+                        logActivity('LOGIN_FAILED', 'Inactive user attempted login: ' . $username);
                     } else {
-                        // Login successful
-                        $_SESSION['admin_id'] = (string) $admin['_id'];
-                        $_SESSION['admin_username'] = $admin['username'];
-                        $_SESSION['admin_role'] = $user_role;
-                        $_SESSION['just_logged_in'] = true;
+                        // Check if user role matches selected role
+                        $user_role = $admin['role'] ?? 'admin';
                         
-                        logActivity('LOGIN', 'Admin logged in');
-                        redirect('/teacher-eval/admin/dashboard.php');
+                        if ($user_role !== $selected_role) {
+                            // User exists but role doesn't match
+                            $error = "This account is registered as " . ucfirst($user_role) . ". Please select the correct role.";
+                            logActivity('LOGIN_FAILED', 'Role mismatch for user: ' . $username . ' (selected: ' . $selected_role . ', actual: ' . $user_role . ')');
+                        } else {
+                            // Login successful
+                            $_SESSION['admin_id'] = (string) $admin['_id'];
+                            $_SESSION['admin_username'] = $admin['username'];
+                            $_SESSION['admin_role'] = $user_role;
+                            $_SESSION['just_logged_in'] = true;
+                            
+                            // Update last_login in database
+                            global $admins_collection;
+                            try {
+                                $admins_collection->updateOne(
+                                    ['_id' => $admin['_id']],
+                                    ['$set' => ['last_login' => new MongoDB\BSON\UTCDateTime()]]
+                                );
+                            } catch (Exception $e) {
+                                error_log('Failed to update last_login: ' . $e->getMessage());
+                            }
+                            
+                            logActivity('LOGIN', 'Admin logged in');
+                            redirect('/teacher-eval/admin/dashboard.php');
+                        }
                     }
                 } else {
                     // Invalid credentials
                     $error = 'Invalid username or password.';
                     logActivity('LOGIN_FAILED', 'Failed login attempt with username: ' . $username);
                 }
+            } catch (\MongoDB\Driver\Exception\ConnectionTimeoutException $e) {
+                $error = 'Database connection timeout. MongoDB server is not responding. Please try again in a moment.';
+            } catch (\MongoDB\Driver\Exception\ServerSelectionTimeoutException $e) {
+                $error = 'Database server is unavailable. Please try again later.';
             } catch (\Exception $e) {
-                $error = 'Database error: ' . $e->getMessage();
+                $error = 'Database error. Please try again.';
+                // Log the actual error for debugging
+                error_log('Login DB Error: ' . $e->getMessage());
             }
         }
     }

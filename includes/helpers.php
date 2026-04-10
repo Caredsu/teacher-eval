@@ -573,3 +573,49 @@ function requireAuth($required_roles = []) {
     return null;
 }
 
+/**
+ * Convert numeric rating to qualitative assessment
+ * @param float $rating Average rating (1-5)
+ * @return array ['rating' => 'label', 'color' => 'hex_color', 'description' => 'full_text']
+ */
+function getQualitativeAssessment($rating) {
+    $rating = (float)$rating;
+    
+    if ($rating >= 4.5) {
+        return [
+            'rating' => 'Outstanding',
+            'color' => '#198754',
+            'badge_bg' => 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+            'description' => 'Exceptionally excellent performance'
+        ];
+    } elseif ($rating >= 4.0) {
+        return [
+            'rating' => 'Excellent',
+            'color' => '#28a745',
+            'badge_bg' => 'linear-gradient(135deg, #34d399 0%, #10b981 100%)',
+            'description' => 'Consistently excellent performance'
+        ];
+    } elseif ($rating >= 3.0) {
+        return [
+            'rating' => 'Good',
+            'color' => '#17a2b8',
+            'badge_bg' => 'linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%)',
+            'description' => 'Good performance overall'
+        ];
+    } elseif ($rating >= 2.0) {
+        return [
+            'rating' => 'Satisfactory',
+            'color' => '#ffc107',
+            'badge_bg' => 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+            'description' => 'Satisfactory but needs improvement'
+        ];
+    } else {
+        return [
+            'rating' => 'Needs Improvement',
+            'color' => '#dc3545',
+            'badge_bg' => 'linear-gradient(135deg, #f87171 0%, #ef4444 100%)',
+            'description' => 'Significant improvement needed'
+        ];
+    }
+}
+

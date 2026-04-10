@@ -59,6 +59,12 @@ try {
         sendError('Invalid username or password', 401);
     }
 
+    // Check if user account is active
+    $user_status = $user['status'] ?? 'active';
+    if ($user_status !== 'active') {
+        sendError('Your account has been deactivated. Please contact an administrator.', 403);
+    }
+
     // Check if role is admin (superadmin or staff)
     if (!in_array($user['role'], ['superadmin', 'staff'])) {
         sendError('Access denied for your role', 403);

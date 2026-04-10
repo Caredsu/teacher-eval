@@ -39,11 +39,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['get_eval_details'])) 
         }
         
         $answers = [];
+        $ratings = [];
         if (isset($eval['answers'])) {
             $answers_array = iterator_to_array($eval['answers']);
             foreach ($answers_array as $answer) {
                 $question_id = $answer['question_id'] ?? 'N/A';
                 $rating = $answer['rating'] ?? 0;
+                $ratings[] = (float)$rating;
                 
                 // Get question text from questions collection
                 $question_text = $question_id;
@@ -61,6 +63,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['get_eval_details'])) 
             }
         }
         
+        // Calculate average and qualitative assessment
+        $avg_rating = count($ratings) > 0 ? round(array_sum($ratings) / count($ratings), 2) : 0;
+        $qualitative = getQualitativeAssessment($avg_rating);
+        
         // Format submitted_at with Manila timezone
         $submitted_at_formatted = 'N/A';
         if ($eval['submitted_at'] instanceof \MongoDB\BSON\UTCDateTime) {
@@ -77,6 +83,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['get_eval_details'])) 
             'teacher_name' => $teacher_name,
             'submitted_at' => $submitted_at_formatted,
             'feedback' => $feedback,
+            'avg_rating' => $avg_rating,
+            'qualitative' => $qualitative['rating'],
+            'qualitative_color' => $qualitative['badge_bg'],
+            'qualitative_description' => $qualitative['description'],
             'answers' => $answers
         ]);
         exit;
@@ -90,6 +100,8 @@ $filter_teacher_id = getGET('teacher_id', '');
 $filter_from_date = getGET('from_date', '');
 $filter_to_date = getGET('to_date', '');
 $filter_min_rating = getGET('min_rating', '');
+$filter_academic_year = getGET('academic_year', '');
+$filter_semester = getGET('semester', '');
 
 // Get all teachers for filter dropdown
 $teachers = $teachers_collection->find();
@@ -98,12 +110,27 @@ foreach ($teachers as $teacher) {
     $teachers_list[] = $teacher;
 }
 
+// Get available academic years from evaluations
+require_once '../app/Models/Evaluation.php';
+$evaluationModel = new \App\Models\Evaluation($evaluations_collection);
+$available_years = $evaluationModel->getAcademicYears();
+
 // Build evaluations query
 $query = [];
 
 // Teacher filter
 if (!empty($filter_teacher_id) && isValidObjectId($filter_teacher_id)) {
     $query['teacher_id'] = new MongoDB\BSON\ObjectId($filter_teacher_id);
+}
+
+// Academic year filter
+if (!empty($filter_academic_year)) {
+    $query['academic_year'] = $filter_academic_year;
+}
+
+// Semester filter
+if (!empty($filter_semester) && in_array((int)$filter_semester, [1, 2])) {
+    $query['semester'] = (int)$filter_semester;
 }
 
 // Date range filters
@@ -136,10 +163,10 @@ if (!empty($filter_min_rating) && is_numeric($filter_min_rating)) {
     $min_rating = (float)$filter_min_rating;
 }
 
-// Pagination settings
-$per_page = 10;
-$current_page = max(1, (int)getGET('page', 1));
-$offset = ($current_page - 1) * $per_page;
+// Pagination settings (removed - DataTables will handle)
+// $per_page = 10;
+// $current_page = max(1, (int)getGET('page', 1));
+// $offset = ($current_page - 1) * $per_page;
 
 // Get ALL evaluations first (including rating filter requirement)
 $all_evaluations = $evaluations_collection->find($query, ['sort' => ['submitted_at' => -1]])->toArray();
@@ -162,13 +189,13 @@ if ($min_rating !== null) {
     $all_evaluations = $filtered_evals;
 }
 
-// Calculate pagination info
+// DataTables will handle pagination - show all evaluations
 $total_evaluations = count($all_evaluations);
-$total_pages = ceil($total_evaluations / $per_page);
-$current_page = min($current_page, max(1, $total_pages)); // Ensure page is within bounds
+$total_pages = 1;
+$current_page = 1;
 
-// Get evaluations for current page
-$evaluations = array_slice($all_evaluations, $offset, $per_page);
+// For DataTables, pass all evaluations
+$evaluations = $all_evaluations;
 
 // Calculate statistics
 $stats = [];
@@ -221,9 +248,154 @@ if (!empty($evaluations)) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Evaluation Results - Teacher Evaluation System</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- DataTables CSS -->
+    <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/teacher-eval/assets/css/dark-theme.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    
+    <!-- DataTables Dark Theme Customization -->
+    <style>
+        /* DataTables Column Widths */
+        #evaluationsTable th:nth-child(1) { width: 20%; min-width: 150px; }
+        #evaluationsTable th:nth-child(2) { width: 15%; min-width: 120px; }
+        #evaluationsTable th:nth-child(3) { width: 12%; min-width: 100px; }
+        #evaluationsTable th:nth-child(4) { width: 10%; min-width: 80px; }
+        #evaluationsTable th:nth-child(5) { width: 12%; min-width: 100px; }
+        #evaluationsTable th:nth-child(6) { width: 10%; min-width: 80px; }
+        #evaluationsTable th:nth-child(7) { width: 10%; min-width: 80px; }
+        
+        .dataTables_wrapper {
+            margin-top: 20px;
+        }
+        
+        .dataTables_filter {
+            text-align: right;
+        }
+        
+        .dataTables_filter input {
+            margin-left: 10px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1.5px solid #555;
+            background: #2c3e50 !important;
+            color: #ffffff !important;
+            font-size: 14px;
+        }
+        
+        .dataTables_filter input::placeholder {
+            color: #999;
+        }
+        
+        .dataTables_length select {
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1.5px solid #555;
+            background: #2c3e50 !important;
+            color: #ffffff !important;
+            font-size: 14px;
+        }
+        
+        .dataTables_info {
+            color: #e0e0e0;
+            font-size: 14px;
+            padding-top: 10px;
+        }
+        
+        .dataTables_paginate {
+            padding-top: 15px;
+        }
+        
+        .page-link {
+            background-color: #2c3e50;
+            border-color: #555;
+            color: #667eea;
+        }
+        
+        .page-link:hover {
+            background-color: #434f63;
+            border-color: #667eea;
+            color: #764ba2;
+        }
+        
+        .page-item.active .page-link {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-color: #667eea;
+        }
+        
+        .page-item.disabled .page-link {
+            background-color: #1a252f;
+            border-color: #555;
+            color: #666;
+        }
+        
+        #evaluationsTable thead th {
+            background: #1a252f;
+            color: #e0e0e0;
+            border-color: #3d5066;
+            font-weight: 600;
+            padding: 10px 8px;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+        
+        #evaluationsTable tbody tr {
+            border-bottom: 1px solid #3d5066;
+        }
+        
+        #evaluationsTable tbody tr:hover {
+            background-color: #1a252f !important;
+        }
+        
+        #evaluationsTable tbody td {
+            color: #ffffff;
+            padding: 10px 8px;
+            vertical-align: middle;
+            font-size: 12px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .rating-badge {
+            box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+        }
+        
+        .dataTables_filter label {
+            color: #e0e0e0;
+            font-weight: 500;
+        }
+        
+        .dataTables_length label {
+            color: #e0e0e0;
+            font-weight: 500;
+        }
+        
+        /* Column Filter Row Styling */
+        #columnFilterRow {
+            background: #1a252f !important;
+        }
+        
+        #columnFilterRow th {
+            padding: 8px 4px !important;
+            border: none !important;
+        }
+        
+        .column-filter {
+            width: 100%;
+            transition: all 0.3s ease;
+        }
+        
+        .column-filter::placeholder {
+            color: #999 !important;
+        }
+        
+        .column-filter:focus {
+            outline: none;
+            background: #3b4a5c !important;
+        }
+    </style>
 </head>
 <body>
     <!-- Navbar -->
@@ -234,241 +406,170 @@ if (!empty($evaluations)) {
         <div class="container-fluid py-5">
         <div class="row mb-4">
             <div class="col-md-6">
-                <h1 class="h2">Evaluation Results</h1>
+                <h1 class="h2"><i class="bi bi-clipboard-check"></i> Evaluation Results</h1>
+                <p class="text-muted">View and analyze evaluation results</p>
             </div>
             <div class="col-md-6 text-end">
+                <?php if (!empty($filter_teacher_id)): ?>
+                    <button class="btn btn-outline-info me-2" onclick="printTeacherResults('<?= escapeOutput($filter_teacher_id) ?>')">
+                        <i class="bi bi-printer"></i> Print Teacher Results
+                    </button>
+                <?php endif; ?>
                 <button class="btn btn-outline-secondary" onclick="exportResultsPDF()">
                     <i class="bi bi-file-pdf"></i> Export PDF
                 </button>
             </div>
         </div>
         
-        <!-- Filter Card - Modern Design -->
-        <div class="card border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, #3b4a5c 0%, #2c3e50 100%); border-left: 4px solid #667eea;">
-            <div class="card-body">
-                <div class="d-flex align-items-center mb-3">
-                    <i class="bi bi-funnel-fill" style="font-size: 20px; color: #667eea; margin-right: 10px;"></i>
-                    <h5 class="mb-0" style="color: #ffffff; font-weight: 600; font-size: 16px;">🔍 Search & Filter Results</h5>
-                </div>
-                
-                <form method="GET" class="row g-3" id="filterForm">
-                    <div class="col-lg-4 col-md-6">
-                        <label for="teacher_filter" class="form-label" style="font-weight: 500; color: #e0e0e0; font-size: 13px;">
-                            <i class="bi bi-person-fill" style="color: #667eea;"></i> Select Teacher
-                        </label>
-                        <select class="form-select" id="teacher_filter" name="teacher_id" style="border-radius: 6px; border: 1.5px solid #555; padding: 10px 12px; font-size: 14px; background: #2c3e50; color: #ffffff;">
-                            <option value="" style="background: #2c3e50; color: #ffffff;">📋 All Teachers</option>
-                            <?php
-                            foreach ($teachers_list as $teacher) {
-                                $teacher_id = objectIdToString($teacher['_id']);
-                                $selected = $teacher_id === $filter_teacher_id ? 'selected' : '';
-                                $full_name = formatFullName(
-                                    $teacher['first_name'] ?? '',
-                                    $teacher['middle_name'] ?? '',
-                                    $teacher['last_name'] ?? ''
-                                );
-                                echo '<option value="' . escapeOutput($teacher_id) . '" ' . $selected . ' style="background: #2c3e50; color: #ffffff;">';
-                                echo escapeOutput($full_name);
-                                echo '</option>';
-                            }
-                            ?>
-                        </select>
-                    </div>
-
-                    <div class="col-lg-2 col-md-6">
-                        <label for="from_date" class="form-label" style="font-weight: 500; color: #e0e0e0; font-size: 13px;">
-                            <i class="bi bi-calendar-event" style="color: #667eea;"></i> From Date
-                        </label>
-                        <input type="date" class="form-control" id="from_date" name="from_date" value="<?= escapeOutput($filter_from_date) ?>" style="border-radius: 6px; border: 1.5px solid #555; padding: 10px 12px; font-size: 14px; background: #2c3e50; color: #ffffff;">
-                    </div>
-
-                    <div class="col-lg-2 col-md-6">
-                        <label for="to_date" class="form-label" style="font-weight: 500; color: #e0e0e0; font-size: 13px;">
-                            <i class="bi bi-calendar-check" style="color: #667eea;"></i> To Date
-                        </label>
-                        <input type="date" class="form-control" id="to_date" name="to_date" value="<?= escapeOutput($filter_to_date) ?>" style="border-radius: 6px; border: 1.5px solid #555; padding: 10px 12px; font-size: 14px; background: #2c3e50; color: #ffffff;">
-                    </div>
-
-                    <div class="col-lg-2 col-md-6">
-                        <label for="min_rating" class="form-label" style="font-weight: 500; color: #e0e0e0; font-size: 13px;">
-                            <i class="bi bi-star-fill" style="color: #ffc107;"></i> Min Rating
-                        </label>
-                        <select class="form-select" id="min_rating" name="min_rating" style="border-radius: 6px; border: 1.5px solid #555; padding: 10px 12px; font-size: 14px; background: #2c3e50; color: #ffffff;">
-                            <option value="" style="background: #2c3e50; color: #ffffff;">All Ratings</option>
-                            <option value="1" <?= $filter_min_rating === '1' ? 'selected' : '' ?> style="background: #2c3e50; color: #ffffff;">⭐ 1+ Stars</option>
-                            <option value="2" <?= $filter_min_rating === '2' ? 'selected' : '' ?> style="background: #2c3e50; color: #ffffff;">⭐⭐ 2+ Stars</option>
-                            <option value="3" <?= $filter_min_rating === '3' ? 'selected' : '' ?> style="background: #2c3e50; color: #ffffff;">⭐⭐⭐ 3+ Stars</option>
-                            <option value="4" <?= $filter_min_rating === '4' ? 'selected' : '' ?> style="background: #2c3e50; color: #ffffff;">⭐⭐⭐⭐ 4+ Stars</option>
-                            <option value="5" <?= $filter_min_rating === '5' ? 'selected' : '' ?> style="background: #2c3e50; color: #ffffff;">⭐⭐⭐⭐⭐ 5 Stars</option>
-                        </select>
-                    </div>
-
-                    <div class="col-lg-2 col-md-6 d-flex align-items-end gap-2">
-                        <button type="submit" class="btn w-100" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 6px; font-weight: 500; padding: 10px 12px;">
-                            <i class="bi bi-search"></i> Search
-                        </button>
-                    </div>
-
-                    <div class="col-12">
-                        <?php if ($filter_teacher_id || $filter_from_date || $filter_to_date || $filter_min_rating): ?>
-                            <a href="/teacher-eval/admin/results.php" class="btn btn-sm" style="color: #ffffff; background: #3b4a5c; border: 1px solid #555; border-radius: 6px;">
-                                <i class="bi bi-arrow-clockwise"></i> Clear Filters
-                            </a>
-                        <?php endif; ?>
-                    </div>
-                </form>
-            </div>
-        </div>
-
-                <!-- Filter Summary -->
-                <div style="margin-top: 15px; padding: 12px 16px; background: #2c3e50; border-radius: 6px; border-left: 3px solid #667eea;" id="filterSummary">
-                    <?php
-                    $active_filters = [];
-                    if (!empty($filter_teacher_id)) {
-                        $teacher = $teachers_collection->findOne(['_id' => new MongoDB\BSON\ObjectId($filter_teacher_id)]);
-                        if ($teacher) {
-                            $active_filters[] = '<strong style="color: #ffffff;">👨‍🏫 ' . formatFullName((string)($teacher['first_name'] ?? ''), (string)($teacher['middle_name'] ?? ''), (string)($teacher['last_name'] ?? '')) . '</strong>';
-                        }
-                    }
-                    if (!empty($filter_from_date)) {
-                        $active_filters[] = '<strong style="color: #e0e0e0;">📅 Start:</strong> <span style="color: #ffffff;">' . $filter_from_date . '</span>';
-                    }
-                    if (!empty($filter_to_date)) {
-                        $active_filters[] = '<strong style="color: #e0e0e0;">📅 End:</strong> <span style="color: #ffffff;">' . $filter_to_date . '</span>';
-                    }
-                    if (!empty($filter_min_rating)) {
-                        $active_filters[] = '<strong style="color: #e0e0e0;">⭐ Min:</strong> <span style="color: #ffffff;">' . $filter_min_rating . '+ stars</span>';
-                    }
-                    
-                    if (!empty($active_filters)): ?>
-                        <small style="color: #e0e0e0; font-size: 13px;">
-                            <strong style="color: #667eea;">🔖 Active Filters:</strong> <?= implode(' • ', $active_filters) ?> 
-                            <a href="/teacher-eval/admin/results.php" class="text-decoration-none ms-2" style="color: #667eea; font-weight: 500;">(Clear all)</a>
-                        </small>
-                    <?php endif; ?>
-                </div>
-        
-        <!-- Results Summary -->
-        <div class="alert d-flex align-items-center justify-content-between flex-wrap" style="background: linear-gradient(135deg, #e8f4f8 0%, #e0f0ff 100%); border-radius: 8px; border-left: 4px solid #3498db; color: #1a1a1a; border: none; margin-bottom: 25px; padding: 16px 20px;" role="alert">
-            <div class="d-flex align-items-center">
-                <i class="bi bi-graph-up me-3" style="font-size: 18px; color: #3498db;"></i>
-                <div>
-                    <strong style="font-size: 15px;">📊 <?= $total_evaluations ?></strong> evaluation(s) found
-                    <?php if ($total_evaluations > 0): ?>
-                        • Showing <strong><?= count($evaluations) > 0 ? $offset + 1 : 0 ?> - <?= min($offset + $per_page, $total_evaluations) ?></strong>
-                    <?php endif; ?>
-                </div>
-            </div>
-            <?php if ($total_pages > 1): ?>
-            <div style="color: #666; font-size: 13px;">
-                Page <strong><?= $current_page ?></strong> of <strong><?= $total_pages ?></strong>
-            </div>
-            <?php endif; ?>
-        </div>
-        
-        <!-- Statistics Cards - Simple Design -->
-        <?php if (!empty($evaluations)): ?>
-        <div class="row g-3 mb-4">
-            <!-- Total Responses Card -->
-            <div class="col-lg-3 col-md-6">
-                <div style="background: #2c3e50; border: 1px solid #3d5066; border-radius: 10px; padding: 20px; border-left: 4px solid #667eea; display: flex; justify-content: space-between; align-items: flex-start;">
-                    <div>
-                        <p style="margin: 0 0 8px 0; color: #999; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 500;">📝 Total Responses</p>
-                        <h2 style="margin: 0; font-size: 28px; font-weight: 700; color: #ffffff;"><?= count($evaluations) ?></h2>
-                    </div>
-                    <div style="font-size: 32px; opacity: 0.3;">📊</div>
-                </div>
-            </div>
-            
-            <!-- Average Rating Card -->
-            <div class="col-lg-3 col-md-6">
-                <div style="background: #2c3e50; border: 1px solid #3d5066; border-radius: 10px; padding: 20px; border-left: 4px solid #27ae60; display: flex; justify-content: space-between; align-items: flex-start;">
-                    <div>
-                        <p style="margin: 0 0 8px 0; color: #999; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 500;">⭐ Average Rating</p>
-                        <h2 style="margin: 0; font-size: 28px; font-weight: 700; color: #ffffff;">
-                            <?php
-                            $total_sum = 0;
-                            $total_count = 0;
-                            foreach ($question_stats as $q_stat) {
-                                $total_sum += $q_stat['sum'];
-                                $total_count += $q_stat['count'];
-                            }
-                            echo $total_count > 0 ? round($total_sum / $total_count, 2) : 'N/A';
-                            ?>
-                            <span style="font-size: 18px; color: #bbb;"> / 5</span>
-                        </h2>
-                    </div>
-                    <div style="font-size: 32px; opacity: 0.3;">🌟</div>
-                </div>
-            </div>
-            
-            <!-- Questions Card -->
-            <div class="col-lg-3 col-md-6">
-                <div style="background: #2c3e50; border: 1px solid #3d5066; border-radius: 10px; padding: 20px; border-left: 4px solid #f39c12; display: flex; justify-content: space-between; align-items: flex-start;">
-                    <div>
-                        <p style="margin: 0 0 8px 0; color: #999; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 500;">❓ Questions</p>
-                        <h2 style="margin: 0; font-size: 28px; font-weight: 700; color: #ffffff;"><?= count($question_stats) ?></h2>
-                    </div>
-                    <div style="font-size: 32px; opacity: 0.3;">📋</div>
-                </div>
-            </div>
-            
-            <!-- Response Rate Card -->
-            <div class="col-lg-3 col-md-6">
-                <div style="background: #2c3e50; border: 1px solid #3d5066; border-radius: 10px; padding: 20px; border-left: 4px solid #3498db; display: flex; justify-content: space-between; align-items: flex-start;">
-                    <div>
-                        <p style="margin: 0 0 8px 0; color: #999; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 500;">✅ Response Rate</p>
-                        <h2 style="margin: 0; font-size: 28px; font-weight: 700; color: #ffffff;">100<span style="font-size: 18px; color: #bbb;">%</span></h2>
-                    </div>
-                    <div style="font-size: 32px; opacity: 0.3;">📈</div>
-                </div>
-            </div>
-        </div>
-        <?php endif; ?>
-        
-        <!-- Question-wise Analysis -->
+        <!-- Detailed Evaluations Card with Integrated Filters -->
         <div class="row">
-            <?php
-            foreach ($question_stats as $q_id => $stats) {
-                $question_text = isset($questions_map[$q_id]) ? $questions_map[$q_id] : 'Unknown Question';
-                ?>
-                <div class="col-md-6 mb-4">
-                    <div class="card border-0 shadow-sm">
-                        <div class="card-header bg-light">
-                            <div class="row">
-                                <div class="col-md-8">
-                                    <h6 class="mb-0"><?= escapeOutput($question_text) ?></h6>
-                                </div>
-                                <div class="col-md-4 text-end">
-                                    <span class="badge bg-success">Average: <?= $stats['avg'] ?>/5</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="card-body">
-                            <canvas id="chart_<?= escapeOutput($q_id) ?>"></canvas>
-                        </div>
-                    </div>
-                </div>
-                <?php
-            }
-            ?>
-        </div>
-        
-        <!-- Detailed Evaluations Table -->
-        <div class="row mt-4">
             <div class="col-12">
                 <div class="card border-0 shadow-sm">
-                    <div class="card-header bg-light">
-                        <h5 class="mb-0">Detailed Evaluations</h5>
+                    <!-- Collapsible Filter Header -->
+                    <div class="card-header p-0" style="background: linear-gradient(135deg, #3b4a5c 0%, #2c3e50 100%); border-left: 4px solid #667eea;">
+                        <button class="btn w-100 text-start p-3" type="button" data-bs-toggle="collapse" data-bs-target="#filterPanel" style="color: #ffffff; font-weight: 600; font-size: 15px;">
+                            <i class="bi bi-funnel-fill" style="color: #667eea; margin-right: 8px;"></i>🔍 Advanced Filters
+                            <i class="bi bi-chevron-down float-end" id="filterToggle"></i>
+                        </button>
                     </div>
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-hover mb-0">
+                    
+                    <!-- Collapsible Filter Panel -->
+                    <div class="collapse show" id="filterPanel">
+                        <div class="card-body" style="background: #2c3e50; border-bottom: 1px solid #3d5066;">
+                            <form method="GET" class="row g-3" id="filterForm">
+                                <div class="col-lg-3 col-md-6 col-sm-12">
+                                    <label for="teacher_filter" class="form-label" style="font-weight: 500; color: #e0e0e0; font-size: 12px;">
+                                        <i class="bi bi-person-fill" style="color: #667eea;"></i> Teacher
+                                    </label>
+                                    <select class="form-select form-select-sm" id="teacher_filter" name="teacher_id" style="border-radius: 6px; border: 1.5px solid #555; padding: 8px 10px; font-size: 13px; background: #2c3e50; color: #ffffff;">
+                                        <option value="" style="background: #2c3e50; color: #ffffff;">All Teachers</option>
+                                        <?php
+                                        foreach ($teachers_list as $teacher) {
+                                            $teacher_id = objectIdToString($teacher['_id']);
+                                            $selected = $teacher_id === $filter_teacher_id ? 'selected' : '';
+                                            $full_name = formatFullName(
+                                                $teacher['first_name'] ?? '',
+                                                $teacher['middle_name'] ?? '',
+                                                $teacher['last_name'] ?? ''
+                                            );
+                                            echo '<option value="' . escapeOutput($teacher_id) . '" ' . $selected . ' style="background: #2c3e50; color: #ffffff;">' . escapeOutput($full_name) . '</option>';
+                                        }
+                                        ?>
+                                    </select>
+                                </div>
+
+                                <div class="col-lg-3 col-md-6 col-sm-12">
+                                    <label for="academic_year" class="form-label" style="font-weight: 500; color: #e0e0e0; font-size: 12px;">
+                                        <i class="bi bi-book" style="color: #667eea;"></i> Year
+                                    </label>
+                                    <select class="form-select form-select-sm" id="academic_year" name="academic_year" style="border-radius: 6px; border: 1.5px solid #555; padding: 8px 10px; font-size: 13px; background: #2c3e50; color: #ffffff;">
+                                        <option value="" style="background: #2c3e50; color: #ffffff;">All Years</option>
+                                        <?php
+                                        foreach ($available_years as $year) {
+                                            $selected = $year === $filter_academic_year ? 'selected' : '';
+                                            echo '<option value="' . escapeOutput($year) . '" ' . $selected . ' style="background: #2c3e50; color: #ffffff;">' . escapeOutput($year) . '</option>';
+                                        }
+                                        ?>
+                                    </select>
+                                </div>
+
+                                <div class="col-lg-3 col-md-6 col-sm-12">
+                                    <label for="semester" class="form-label" style="font-weight: 500; color: #e0e0e0; font-size: 12px;">
+                                        <i class="bi bi-calendar2-quarter" style="color: #27ae60;"></i> Semester
+                                    </label>
+                                    <select class="form-select form-select-sm" id="semester" name="semester" style="border-radius: 6px; border: 1.5px solid #555; padding: 8px 10px; font-size: 13px; background: #2c3e50; color: #ffffff;">
+                                        <option value="" style="background: #2c3e50; color: #ffffff;">All</option>
+                                        <option value="1" <?= $filter_semester === '1' ? 'selected' : '' ?> style="background: #2c3e50; color: #ffffff;">1st (Jan-Jun)</option>
+                                        <option value="2" <?= $filter_semester === '2' ? 'selected' : '' ?> style="background: #2c3e50; color: #ffffff;">2nd (Jul-Dec)</option>
+                                    </select>
+                                </div>
+
+                                <div class="col-lg-2 col-md-6 col-sm-12">
+                                    <label for="from_date" class="form-label" style="font-weight: 500; color: #e0e0e0; font-size: 12px;">
+                                        <i class="bi bi-calendar-event" style="color: #667eea;"></i> From
+                                    </label>
+                                    <input type="date" class="form-control form-control-sm" id="from_date" name="from_date" value="<?= escapeOutput($filter_from_date) ?>" style="border-radius: 6px; border: 1.5px solid #555; padding: 8px 10px; font-size: 13px; background: #2c3e50; color: #ffffff;">
+                                </div>
+
+                                <div class="col-lg-2 col-md-6 col-sm-12">
+                                    <label for="to_date" class="form-label" style="font-weight: 500; color: #e0e0e0; font-size: 12px;">
+                                        <i class="bi bi-calendar-check" style="color: #667eea;"></i> To
+                                    </label>
+                                    <input type="date" class="form-control form-control-sm" id="to_date" name="to_date" value="<?= escapeOutput($filter_to_date) ?>" style="border-radius: 6px; border: 1.5px solid #555; padding: 8px 10px; font-size: 13px; background: #2c3e50; color: #ffffff;">
+                                </div>
+
+                                <div class="col-lg-2 col-md-6 col-sm-12">
+                                    <label for="min_rating" class="form-label" style="font-weight: 500; color: #e0e0e0; font-size: 12px;">
+                                        <i class="bi bi-star-fill" style="color: #ffc107;"></i> Min Rating
+                                    </label>
+                                    <select class="form-select form-select-sm" id="min_rating" name="min_rating" style="border-radius: 6px; border: 1.5px solid #555; padding: 8px 10px; font-size: 13px; background: #2c3e50; color: #ffffff;">
+                                        <option value="" style="background: #2c3e50; color: #ffffff;">All</option>
+                                        <option value="1" <?= $filter_min_rating === '1' ? 'selected' : '' ?> style="background: #2c3e50; color: #ffffff;">1+ ⭐</option>
+                                        <option value="2" <?= $filter_min_rating === '2' ? 'selected' : '' ?> style="background: #2c3e50; color: #ffffff;">2+ ⭐</option>
+                                        <option value="3" <?= $filter_min_rating === '3' ? 'selected' : '' ?> style="background: #2c3e50; color: #ffffff;">3+ ⭐</option>
+                                        <option value="4" <?= $filter_min_rating === '4' ? 'selected' : '' ?> style="background: #2c3e50; color: #ffffff;">4+ ⭐</option>
+                                        <option value="5" <?= $filter_min_rating === '5' ? 'selected' : '' ?> style="background: #2c3e50; color: #ffffff;">5 ⭐</option>
+                                    </select>
+                                </div>
+
+                                <div class="col-12 pt-2">
+                                    <button type="submit" class="btn btn-sm" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 6px; font-weight: 500; padding: 8px 16px;">
+                                        <i class="bi bi-search"></i> Apply Filters
+                                    </button>
+                                    <?php if ($filter_teacher_id || $filter_from_date || $filter_to_date || $filter_min_rating || $filter_academic_year || $filter_semester): ?>
+                                        <a href="/teacher-eval/admin/results.php" class="btn btn-sm" style="color: #ffffff; background: #3b4a5c; border: 1px solid #555; border-radius: 6px; margin-left: 5px;">
+                                            <i class="bi bi-arrow-clockwise"></i> Clear All
+                                        </a>
+                                    <?php endif; ?>
+                                </div>
+
+                                <!-- Active Filters Display -->
+                                <?php
+                                $active_filters = [];
+                                if (!empty($filter_teacher_id)) {
+                                    $teacher = $teachers_collection->findOne(['_id' => new MongoDB\BSON\ObjectId($filter_teacher_id)]);
+                                    if ($teacher) {
+                                        $active_filters[] = '<span class="badge bg-info text-dark">👨‍🏫 ' . formatFullName((string)($teacher['first_name'] ?? ''), (string)($teacher['middle_name'] ?? ''), (string)($teacher['last_name'] ?? '')) . '</span>';
+                                    }
+                                }
+                                if (!empty($filter_academic_year)) {
+                                    $active_filters[] = '<span class="badge bg-info text-dark">📚 ' . escapeOutput($filter_academic_year) . '</span>';
+                                }
+                                if (!empty($filter_semester)) {
+                                    $sem_text = $filter_semester === '1' ? '1st Sem' : '2nd Sem';
+                                    $active_filters[] = '<span class="badge bg-info text-dark">📋 ' . $sem_text . '</span>';
+                                }
+                                if (!empty($filter_from_date)) {
+                                    $active_filters[] = '<span class="badge bg-secondary">📅 ' . escapeOutput($filter_from_date) . '</span>';
+                                }
+                                if (!empty($filter_to_date)) {
+                                    $active_filters[] = '<span class="badge bg-secondary">📅 ' . escapeOutput($filter_to_date) . '</span>';
+                                }
+                                if (!empty($filter_min_rating)) {
+                                    $active_filters[] = '<span class="badge bg-warning text-dark">⭐ ' . escapeOutput($filter_min_rating) . '+</span>';
+                                }
+                                
+                                if (!empty($active_filters)): ?>
+                                    <div class="col-12 pt-2" style="border-top: 1px solid #555;">
+                                        <small style="color: #e0e0e0; font-weight: 500;">Active: </small>
+                                        <?= implode(' ', $active_filters) ?>
+                                    </div>
+                                <?php endif; ?>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <!-- DataTable Section -->
+                    <div class="card-body" style="padding: 0; overflow-x: auto;">
+                        <div class="table-responsive" style="margin: 0;">
+                            <table id="evaluationsTable" class="table table-hover table-striped mb-0 w-100" style="margin: 0;">
                                 <thead class="table-light">
                                     <tr>
                                         <th>Teacher</th>
-                                        <th>Date</th>
-                                        <th>Average Rating</th>
+                                        <th>Submitted Date</th>
+                                        <th>Academic Year</th>
+                                        <th>Semester</th>
+                                        <th>Avg Rating</th>
                                         <th>Responses</th>
                                         <th>Action</th>
                                     </tr>
@@ -482,7 +583,6 @@ if (!empty($evaluations)) {
                                         $avg_rating = 0;
                                         
                                         if (isset($eval['answers'])) {
-                                            // Convert MongoDB BSONArray to PHP array
                                             $answers_array = iterator_to_array($eval['answers']);
                                             $ratings = [];
                                             foreach ($answers_array as $answer) {
@@ -492,6 +592,9 @@ if (!empty($evaluations)) {
                                             }
                                             $avg_rating = count($ratings) > 0 ? round(array_sum($ratings) / count($ratings), 1) : 0;
                                         }
+                                        
+                                        // Get qualitative assessment
+                                        $qualitative = getQualitativeAssessment($avg_rating);
                                         
                                         $teacher_name = 'Unknown';
                                         if ($teacher) {
@@ -503,76 +606,33 @@ if (!empty($evaluations)) {
                                         }
                                         
                                         $eval_id = objectIdToString($eval['_id']);
+                                        $submitted_date = formatDateTime($eval['submitted_at'] ?? '');
+                                        $academic_year = $eval['academic_year'] ?? 'N/A';
+                                        $semester = isset($eval['semester']) ? ($eval['semester'] === 1 ? '1st Sem' : '2nd Sem') : 'N/A';
+                                        $response_count = isset($eval['answers']) ? count($eval['answers']) : 0;
+                                        
                                         echo '
                                         <tr>
-                                            <td class="fw-500">' . escapeOutput($teacher_name) . '</td>
-                                            <td>' . formatDateTime($eval['submitted_at'] ?? '') . '</td>
-                                            <td><span class="badge bg-success">' . $avg_rating . '/5</span></td>
-                                            <td>' . (isset($eval['answers']) ? count($eval['answers']) : 0) . ' answers</td>
-                                            <td><button class="btn btn-sm btn-outline-primary btn-view-eval" data-eval-id="' . escapeOutput($eval_id) . '" title="View Details"><i class="bi bi-eye"></i> View</button></td>
+                                            <td class="fw-500"><i class="bi bi-person-fill me-2" style="color: #667eea;"></i>' . escapeOutput($teacher_name) . '</td>
+                                            <td><small class="text-muted">' . escapeOutput($submitted_date) . '</small></td>
+                                            <td><span class="badge bg-info text-dark">' . escapeOutput($academic_year) . '</span></td>
+                                            <td><span class="badge bg-secondary">' . escapeOutput($semester) . '</span></td>
+                                            <td>
+                                                <div style="display: flex; flex-direction: column; gap: 4px;">
+                                                    <div class="rating-badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 4px 10px; border-radius: 12px; display: inline-block; font-weight: bold; font-size: 13px;">⭐ ' . $avg_rating . '/5</div>
+                                                    <span class="badge" style="background: ' . $qualitative['color'] . '; color: white; display: inline-block; padding: 4px 8px; border-radius: 12px; font-size: 12px;">' . escapeOutput($qualitative['rating']) . '</span>
+                                                </div>
+                                            </td>
+                                            <td><span class="badge bg-light text-dark">' . $response_count . '</span></td>
+                                            <td><button class="btn btn-sm btn-primary btn-view-eval" data-eval-id="' . escapeOutput($eval_id) . '" title="View Details"><i class="bi bi-eye"></i> View</button></td>
                                         </tr>
                                         ';
                                     }
                                     ?>
                                 </tbody>
                             </table>
-                        </div>                        
-                        <!-- Pagination Controls -->
-                        <?php if ($total_pages > 1): ?>
-                        <nav aria-label="Page navigation" class="mt-4">
-                            <ul class="pagination justify-content-center mb-0">
-                                <!-- Previous Button -->
-                                <li class="page-item <?= $current_page <= 1 ? 'disabled' : '' ?>">
-                                    <a class="page-link" href="?page=<?= max(1, $current_page - 1) ?>&teacher_id=<?= escapeOutput($filter_teacher_id) ?>&from_date=<?= escapeOutput($filter_from_date) ?>&to_date=<?= escapeOutput($filter_to_date) ?>&min_rating=<?= escapeOutput($filter_min_rating) ?>">
-                                        <i class="bi bi-chevron-left"></i> Previous
-                                    </a>
-                                </li>
-                                
-                                <!-- Page Numbers -->
-                                <?php
-                                // Show max 5 page numbers
-                                $start_page = max(1, $current_page - 2);
-                                $end_page = min($total_pages, $current_page + 2);
-                                
-                                if ($start_page > 1): ?>
-                                    <li class="page-item">
-                                        <a class="page-link" href="?page=1&teacher_id=<?= escapeOutput($filter_teacher_id) ?>&from_date=<?= escapeOutput($filter_from_date) ?>&to_date=<?= escapeOutput($filter_to_date) ?>&min_rating=<?= escapeOutput($filter_min_rating) ?>">1</a>
-                                    </li>
-                                    <?php if ($start_page > 2): ?>
-                                    <li class="page-item disabled">
-                                        <span class="page-link">...</span>
-                                    </li>
-                                    <?php endif; ?>
-                                <?php endif; ?>
-                                
-                                <?php for ($i = $start_page; $i <= $end_page; $i++): ?>
-                                <li class="page-item <?= $i == $current_page ? 'active' : '' ?>">
-                                    <a class="page-link" href="?page=<?= $i ?>&teacher_id=<?= escapeOutput($filter_teacher_id) ?>&from_date=<?= escapeOutput($filter_from_date) ?>&to_date=<?= escapeOutput($filter_to_date) ?>&min_rating=<?= escapeOutput($filter_min_rating) ?>">
-                                        <?= $i ?>
-                                    </a>
-                                </li>
-                                <?php endfor; ?>
-                                
-                                <?php if ($end_page < $total_pages): ?>
-                                    <?php if ($end_page < $total_pages - 1): ?>
-                                    <li class="page-item disabled">
-                                        <span class="page-link">...</span>
-                                    </li>
-                                    <?php endif; ?>
-                                    <li class="page-item">
-                                        <a class="page-link" href="?page=<?= $total_pages ?>&teacher_id=<?= escapeOutput($filter_teacher_id) ?>&from_date=<?= escapeOutput($filter_from_date) ?>&to_date=<?= escapeOutput($filter_to_date) ?>&min_rating=<?= escapeOutput($filter_min_rating) ?>"><?= $total_pages ?></a>
-                                    </li>
-                                <?php endif; ?>
-                                
-                                <!-- Next Button -->
-                                <li class="page-item <?= $current_page >= $total_pages ? 'disabled' : '' ?>">
-                                    <a class="page-link" href="?page=<?= min($total_pages, $current_page + 1) ?>&teacher_id=<?= escapeOutput($filter_teacher_id) ?>&from_date=<?= escapeOutput($filter_from_date) ?>&to_date=<?= escapeOutput($filter_to_date) ?>&min_rating=<?= escapeOutput($filter_min_rating) ?>">
-                                        Next <i class="bi bi-chevron-right"></i>
-                                    </a>
-                                </li>
-                            </ul>
-                        </nav>
-                        <?php endif; ?>
+                        </div>
+                    
                     </div>
                 </div>
             </div>
@@ -584,6 +644,41 @@ if (!empty($evaluations)) {
             <p class="mt-3">No evaluations found yet.</p>
         </div>
         <?php endif; ?>
+        
+        <!-- Question-wise Analysis Charts -->
+        <?php if (!empty($question_stats)): ?>
+        <div class="row mt-5">
+            <div class="col-12">
+                <h3 class="mb-4" style="color: #e0e0e0;">
+                    <i class="bi bi-graph-up" style="color: #667eea;"></i> Question Analysis
+                </h3>
+            </div>
+            <?php
+            foreach ($question_stats as $q_id => $stats) {
+                $question_text = isset($questions_map[$q_id]) ? $questions_map[$q_id] : 'Unknown Question';
+                ?>
+                <div class="col-md-6 mb-4">
+                    <div class="card border-0 shadow-sm" style="background: #2c3e50; border: 1px solid #3d5066;">
+                        <div class="card-header" style="background: #1a252f; border-bottom: 1px solid #3d5066;">
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <h6 class="mb-0" style="color: #e0e0e0;"><?= escapeOutput($question_text) ?></h6>
+                                </div>
+                                <div class="col-md-4 text-end">
+                                    <span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">Avg: <?= $stats['avg'] ?>/5</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body" style="padding: 20px;">
+                            <canvas id="chart_<?= escapeOutput($q_id) ?>"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <?php
+            }
+            ?>
+        </div>
+        <?php endif; ?>
     </div>
     </div>  <!-- Close main-content -->
 
@@ -593,39 +688,277 @@ if (!empty($evaluations)) {
     <script src="/teacher-eval/assets/js/confirmation.js"></script>
     <script src="/teacher-eval/assets/js/export-pdf.js"></script>
     <script>
+        // DataTable and filter initialization
+        // Chart generation removed - using integrated filter layout instead
+        
         // Generate charts for each question
         <?php foreach ($question_stats as $q_id => $stats): ?>
-        const ctx_<?= str_replace('-', '_', $q_id) ?> = document.getElementById('chart_<?= escapeOutput($q_id) ?>').getContext('2d');
-        new Chart(ctx_<?= str_replace('-', '_', $q_id) ?>, {
-            type: 'bar',
-            data: {
-                labels: ['1 Star', '2 Stars', '3 Stars', '4 Stars', '5 Stars'],
-                datasets: [{
-                    label: 'Number of Responses',
-                    data: [
-                        <?= $stats['ratings'][1] ?>,
-                        <?= $stats['ratings'][2] ?>,
-                        <?= $stats['ratings'][3] ?>,
-                        <?= $stats['ratings'][4] ?>,
-                        <?= $stats['ratings'][5] ?>
-                    ],
-                    backgroundColor: ['#dc3545', '#fd7e14', '#ffc107', '#28a745', '#198754']
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: { legend: { display: false } },
-                scales: { y: { beginAtZero: true } }
-            }
-        });
+        const ctx_<?= str_replace('-', '_', str_replace(['{', '}', '$', '.'], '_', $q_id)) ?> = document.getElementById('chart_<?= escapeOutput($q_id) ?>');
+        if (ctx_<?= str_replace('-', '_', str_replace(['{', '}', '$', '.'], '_', $q_id)) ?>) {
+            new Chart(ctx_<?= str_replace('-', '_', str_replace(['{', '}', '$', '.'], '_', $q_id)) ?>.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: ['1 ⭐', '2 ⭐', '3 ⭐', '4 ⭐', '5 ⭐'],
+                    datasets: [{
+                        label: 'Number of Responses',
+                        data: [
+                            <?= $stats['ratings'][1] ?>,
+                            <?= $stats['ratings'][2] ?>,
+                            <?= $stats['ratings'][3] ?>,
+                            <?= $stats['ratings'][4] ?>,
+                            <?= $stats['ratings'][5] ?>
+                        ],
+                        backgroundColor: ['#dc3545', '#fd7e14', '#ffc107', '#28a745', '#198754'],
+                        borderColor: ['#c82333', '#e77600', '#ffb300', '#1e7e34', '#15692f'],
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#1a252f',
+                            borderColor: '#667eea',
+                            borderWidth: 1,
+                            titleColor: '#e0e0e0',
+                            bodyColor: '#e0e0e0'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { color: '#999' },
+                            grid: { color: '#3d5066' }
+                        },
+                        x: {
+                            ticks: { color: '#999' },
+                            grid: { color: '#3d5066' }
+                        }
+                    }
+                }
+            });
+        }
         <?php endforeach; ?>
-    </script>
-    
-    <!-- Evaluation Details Script -->
-    <script>
+        
         // Get CSRF token
         function getCSRFToken() {
             return document.querySelector('input[name="csrf_token"]')?.value || '';
+        }
+        
+        // Print Teacher Results
+        function printTeacherResults(teacherId) {
+            Swal.fire({
+                title: 'Generating Report...',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                didOpen: async (modal) => {
+                    Swal.showLoading();
+                    
+                    try {
+                        const response = await fetch(`/teacher-eval/api/export-pdf.php?type=results&teacher_id=${teacherId}`);
+                        
+                        if (!response.ok) {
+                            throw new Error(`HTTP Error: ${response.status}`);
+                        }
+                        
+                        const result = await response.json();
+                        
+                        if (!result.success) {
+                            Swal.fire('Error', result.message || 'Failed to generate report', 'error');
+                            return;
+                        }
+                        
+                        const data = result.data;
+                        
+                        // Create printable HTML
+                        const printWindow = window.open('', '', 'width=900,height=600');
+                        printWindow.document.write(`
+                            <!DOCTYPE html>
+                            <html>
+                            <head>
+                                <meta charset="UTF-8">
+                                <title>${data.teacher_name} - Evaluation Results</title>
+                                <style>
+                                    * { margin: 0; padding: 0; box-sizing: border-box; }
+                                    body {
+                                        font-family: Arial, sans-serif;
+                                        padding: 20px;
+                                        background: white;
+                                        color: #333;
+                                        line-height: 1.6;
+                                    }
+                                    .header {
+                                        text-align: center;
+                                        margin-bottom: 30px;
+                                        padding-bottom: 20px;
+                                        border-bottom: 2px solid #333;
+                                    }
+                                    .logo {
+                                        height: 60px;
+                                        width: 60px;
+                                        border-radius: 50%;
+                                        margin: 0 auto 10px;
+                                        object-fit: cover;
+                                    }
+                                    h1 {
+                                        font-size: 22px;
+                                        margin-bottom: 5px;
+                                        text-transform: uppercase;
+                                        letter-spacing: 1px;
+                                    }
+                                    .subtitle {
+                                        font-size: 12px;
+                                        color: #666;
+                                        margin: 5px 0;
+                                    }
+                                    .title {
+                                        text-align: center;
+                                        margin-bottom: 20px;
+                                        font-size: 18px;
+                                        font-weight: bold;
+                                        text-transform: uppercase;
+                                        letter-spacing: 0.5px;
+                                    }
+                                    .info-section {
+                                        margin-bottom: 20px;
+                                        padding: 15px;
+                                        background: #f5f5f5;
+                                        border-radius: 6px;
+                                        border-left: 4px solid #667eea;
+                                    }
+                                    .info-section h3 {
+                                        font-size: 12px;
+                                        color: #667eea;
+                                        text-transform: uppercase;
+                                        margin-bottom: 8px;
+                                        font-weight: bold;
+                                    }
+                                    .info-section p {
+                                        font-size: 14px;
+                                        margin: 5px 0;
+                                    }
+                                    table {
+                                        width: 100%;
+                                        margin-bottom: 20px;
+                                        border-collapse: collapse;
+                                        font-size: 12px;
+                                    }
+                                    th {
+                                        background: #2c3e50;
+                                        color: white;
+                                        padding: 12px;
+                                        text-align: left;
+                                        font-weight: 600;
+                                    }
+                                    td {
+                                        padding: 10px;
+                                        border-bottom: 1px solid #ddd;
+                                    }
+                                    tr:nth-child(even) {
+                                        background: #f9f9f9;
+                                    }
+                                    tr:hover {
+                                        background: #f0f0f0;
+                                    }
+                                    .rating-badge {
+                                        background: #667eea;
+                                        color: white;
+                                        padding: 4px 8px;
+                                        border-radius: 4px;
+                                        display: inline-block;
+                                        font-weight: bold;
+                                    }
+                                    .footer {
+                                        text-align: center;
+                                        margin-top: 30px;
+                                        padding-top: 20px;
+                                        border-top: 1px solid #ddd;
+                                        font-size: 11px;
+                                        color: #999;
+                                    }
+                                    @media print {
+                                        body { margin: 0; padding: 10px; }
+                                        .no-print { display: none; }
+                                    }
+                                </style>
+                            </head>
+                            <body>
+                                <div class="header">
+                                    <img src="/teacher-eval/assets/img/2.png" alt="Logo" class="logo">
+                                    <h1>FULLBRIGHT COLLEGE INC</h1>
+                                    <p class="subtitle">KM 5 National Highway, San Jose, Puerto Princesa, Philippines, 5300</p>
+                                    <p class="subtitle">Email: fullbrightcollege@yahoo.com</p>
+                                </div>
+                                
+                                <div class="title">Teacher Evaluation Results</div>
+                                
+                                <div class="info-section">
+                                    <h3>Evaluatee Information</h3>
+                                    <p><strong>Teacher Name:</strong> ${escapeHtml(data.teacher_name)}</p>
+                                    <p><strong>Department:</strong> ${escapeHtml(data.department || 'N/A')}</p>
+                                    <p><strong>Total Evaluations:</strong> ${data.evaluations.length}</p>
+                                </div>
+                                
+                                <div class="info-section">
+                                    <h3>Summary Statistics</h3>
+                                    <p><strong>Overall Average Rating:</strong> <span class="rating-badge">${data.overall_avg}/5</span></p>
+                                    <p><strong>Highest Rating:</strong> ${data.highest_rating}/5</p>
+                                    <p><strong>Lowest Rating:</strong> ${data.lowest_rating}/5</p>
+                                </div>
+                                
+                                <h3 style="margin: 20px 0 10px; font-size: 14px; font-weight: bold;">Individual Evaluations</h3>
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Submission Date</th>
+                                            <th>Average Rating</th>
+                                            <th>Feedback</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${data.evaluations.map(eval => `
+                                            <tr>
+                                                <td>${escapeHtml(eval.submitted_date)}</td>
+                                                <td><span class="rating-badge">${eval.avg_rating}/5</span></td>
+                                                <td>${escapeHtml(eval.feedback.substring(0, 100))}${eval.feedback.length > 100 ? '...' : ''}</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                                
+                                <div class="footer">
+                                    <p>Generated on: ${new Date().toLocaleString()}</p>
+                                    <p style="margin-top: 10px;">This document is confidential and intended for administrative purposes only.</p>
+                                </div>
+                                
+                                <div class="no-print" style="text-align: center; margin-top: 20px; padding: 20px; border-top: 1px solid #ddd;">
+                                    <button onclick="window.print()" style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">Print</button>
+                                    <button onclick="window.close()" style="padding: 10px 20px; background: #ccc; color: #333; border: none; border-radius: 4px; cursor: pointer; margin-left: 10px; font-size: 14px;">Close</button>
+                                </div>
+                            </body>
+                            </html>
+                        `);
+                        printWindow.document.close();
+                        
+                        // Auto-print if not already in print preview
+                        setTimeout(() => {
+                            Swal.close();
+                        }, 500);
+                        
+                    } catch (error) {
+                        console.error('Error:', error);
+                        Swal.fire('Error', 'Failed to generate report: ' + error.message, 'error');
+                    }
+                }
+            });
+        }
+        
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
         
         // Setup view buttons
@@ -667,6 +1000,8 @@ if (!empty($evaluations)) {
             let html = '<div class="evaluation-details">';
             html += '<div class="mb-3" style="color: #ffffff;"><strong style="color: #e0e0e0;">Teacher:</strong> ' + escapeHtml(data.teacher_name) + '</div>';
             html += '<div class="mb-3" style="color: #ffffff;"><strong style="color: #e0e0e0;">Submitted:</strong> ' + escapeHtml(data.submitted_at) + '</div>';
+            html += '<div class="mb-3" style="color: #ffffff;"><strong style="color: #e0e0e0;">Overall Rating:</strong> <span class="badge" style="background: ' + data.qualitative_color + '; color: white; padding: 6px 12px; font-size: 13px;">⭐ ' + data.avg_rating + '/5 - ' + escapeHtml(data.qualitative) + '</span></div>';
+            html += '<div class="mb-3" style="color: #b0b0b0; font-size: 13px;"><em>' + escapeHtml(data.qualitative_description) + '</em></div>';
             html += '<hr style="border-color: #555;">';
             html += '<h6 style="color: #e0e0e0;">Ratings by Question:</h6>';
             html += '<div class="table-responsive">';
@@ -688,7 +1023,7 @@ if (!empty($evaluations)) {
             
             html += '</tbody></table></div>';
             html += '<hr style="border-color: #555;">';
-            html += '<h6 style="color: #e0e0e0;">Overall Feedback:</h6>';
+            html += '<h6 style="color: #e0e0e0;">Qualitative Feedback:</h6>';
             html += '<div style="background: #1a252f; color: #ffffff; padding: 15px; border-radius: 6px; border-left: 3px solid #667eea; min-height: 80px; word-wrap: break-word;">' + escapeHtml(data.feedback) + '</div>';
             html += '</div>';
             
@@ -725,7 +1060,81 @@ if (!empty($evaluations)) {
     
     <!-- Footer -->
     <?php include '../includes/footer.php'; ?>
+    
+    <!-- DataTables JS Libraries -->
+    <script src="https://code.jquery.com/jquery-3.7.0.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+    <script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
+    
+    <!-- DataTables Initialization & Enhanced Features -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize DataTable
+            const table = new DataTable('#evaluationsTable', {
+                responsive: true,
+                pageLength: 10,
+                lengthMenu: [[10, 25, 50, -1], [10, 25, 50, 'All']],
+                order: [[1, 'desc']],
+                language: {
+                    search: ' Quick Search:',
+                    lengthMenu: 'Show _MENU_ per page',
+                    info: 'Showing _START_ to _END_ of _TOTAL_ evaluations',
+                    infoEmpty: 'No evaluations available',
+                    infoFiltered: '(filtered from _MAX_ total)',
+                    paginate: {
+                        first: '« First',
+                        last: 'Last »',
+                        next: 'Next ›',
+                        previous: '‹ Previous'
+                    }
+                },
+                columnDefs: [
+                    { orderable: false, targets: [6] },
+                    { className: 'text-center', targets: [4, 5, 6] }
+                ],
+                dom: '<"top mb-2"<"row g-2"<"col-md-6"l><"col-md-6"f>>>' +
+                     '<"table-wrapper"tr>' +
+                     '<"bottom mt-3"<"row"<"col-md-6"i><"col-md-6"p>>>',
+                drawCallback: function() {
+                    // Reattach event listeners after DataTable redraws
+                    attachViewButtonListeners();
+                    
+                    // Style the paging elements
+                    $('.dataTables_paginate').addClass('pagination pagination-sm justify-content-end');
+                    $('.paginate_button').addClass('page-item');
+                    $('.paginate_button a').addClass('page-link');
+                    $('.paginate_button.current a').closest('.page-item').addClass('active');
+                }
+            });
+            
+            // Attach view button listeners
+            attachViewButtonListeners();
+            
+            // Update record count
+            updateRecordCount();
+            table.on('draw', updateRecordCount);
+            
+            function updateRecordCount() {
+                const info = table.page.info();
+                document.getElementById('recordCount').textContent = info.recordsDisplay;
+            }
+            
+            function attachViewButtonListeners() {
+                document.querySelectorAll('.btn-view-eval').forEach(btn => {
+                    // Remove existing listener if any
+                    const newBtn = btn.cloneNode(true);
+                    btn.parentNode.replaceChild(newBtn, btn);
+                    
+                    newBtn.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        const evalId = this.getAttribute('data-eval-id');
+                        viewEvaluationDetails(evalId);
+                    });
+                });
+            }
+        });
+    </script>
 </body>
-</html>
 </html>
 

@@ -1,348 +1,21 @@
 <?php
 /**
- * Users Management - Role-Based Access Control
- * Admin Only
+ * Users Management - Admin Console
+ * Uses new API endpoints instead of direct database queries
  */
-
-// Strict output handling
-ob_start();
-error_reporting(E_ALL);
-ini_set('display_errors', '0');
-ini_set('log_errors', '1');
 
 require_once '../includes/helpers.php';
 require_once '../config/database.php';
 
 initializeSession();
 requireLogin();
+requireRole('admin');
 
 // Staff cannot access user management
 if (isStaff()) {
     setErrorMessage('Access denied. User management is admin-only.');
     redirect('/teacher-eval/admin/dashboard.php');
 }
-
-// Handle AJAX requests
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
-    // Clear ALL output buffers
-    while (ob_get_level()) {
-        ob_end_clean();
-    }
-    
-    header('Content-Type: application/json; charset=utf-8');
-    header('Cache-Control: no-cache, must-revalidate');
-    header('Pragma: no-cache');
-    
-    // Start fresh buffer for JSON only
-    ob_start();
-    
-    try {
-        // Check authorization for AJAX
-        if (!hasRole('admin')) {
-            http_response_code(403);
-            error_log('AJAX Auth Failed: User role = ' . (getUserRole() ?? 'NULL'));
-            throw new Exception('Access Denied: Insufficient permissions.');
-        }
-        
-        if (!isset($_POST['csrf_token']) || !verifyCSRFToken($_POST['csrf_token'])) {
-            http_response_code(403);
-            error_log('AJAX CSRF Failed');
-            throw new Exception('Security token invalid.');
-        }
-        
-        $ajax_action = sanitizeInput($_POST['ajax_action']);
-        
-        // Get all users
-        if ($ajax_action === 'get_users') {
-            $users = $admins_collection->find([], ['sort' => ['username' => 1]])->toArray();
-            $formatted = [];
-            
-            foreach ($users as $user) {
-                $role = $user['role'] ?? 'admin';
-                $formatted[] = [
-                    '_id' => objectIdToString($user['_id']),
-                    'username' => $user['username'] ?? '',
-                    'email' => $user['email'] ?? '',
-                    'role' => $role,
-                    'role_display' => getRoleDisplayName($role),
-                    'status' => $user['status'] ?? 'active',
-                    'created_at' => formatDateTime($user['created_at'] ?? ''),
-                    'created_by' => $user['created_by'] ?? 'System',
-                    'updated_at' => formatDateTime($user['updated_at'] ?? ''),
-                    'updated_by' => $user['updated_by'] ?? 'System',
-                    'last_login' => $user['last_login'] ? formatDateTime($user['last_login']) : 'Never'
-                ];
-            }
-            
-            // Clear any accidental output before JSON
-            ob_end_clean();
-            echo json_encode([
-                'success' => true,
-                'message' => '',
-                'data' => $formatted
-            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-            exit;
-        }
-        
-        // Get single user
-        if ($ajax_action === 'get_user') {
-            $user_id = sanitizeInput($_POST['user_id'] ?? '');
-            
-            if (!isValidObjectId($user_id)) {
-                http_response_code(400);
-                ob_end_clean();
-                echo json_encode(['success' => false, 'message' => 'Invalid user ID', 'data' => []]);
-                exit;
-            }
-            
-            $user = $admins_collection->findOne(['_id' => new MongoDB\BSON\ObjectId($user_id)]);
-            
-            if (!$user) {
-                http_response_code(404);
-                ob_end_clean();
-                echo json_encode(['success' => false, 'message' => 'User not found', 'data' => []]);
-                exit;
-            }
-            
-            ob_end_clean();
-            echo json_encode([
-                'success' => true,
-                'message' => '',
-                'data' => [
-                    '_id' => objectIdToString($user['_id']),
-                    'username' => $user['username'] ?? '',
-                    'email' => $user['email'] ?? '',
-                    'role' => $user['role'] ?? 'admin',
-                    'status' => $user['status'] ?? 'active'
-                ]
-            ], JSON_UNESCAPED_UNICODE);
-            exit;
-        }
-        
-        // Add user
-        if ($ajax_action === 'add_user') {
-            $username = sanitizeInput($_POST['username'] ?? '');
-            $email = sanitizeInput($_POST['email'] ?? '');
-            $password = $_POST['password'] ?? '';
-            $role = sanitizeInput($_POST['role'] ?? 'admin');
-            $status = sanitizeInput($_POST['status'] ?? 'active');
-            
-            // Validation
-            if (empty($username) || strlen($username) < 3) {
-                http_response_code(400);
-                ob_end_clean();
-                echo json_encode(['success' => false, 'message' => 'Username must be at least 3 characters', 'data' => []]);
-                exit;
-            }
-            
-            if (empty($password) || strlen($password) < 6) {
-                http_response_code(400);
-                ob_end_clean();
-                echo json_encode(['success' => false, 'message' => 'Password must be at least 6 characters', 'data' => []]);
-                exit;
-            }
-            
-            if (!empty($email) && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                http_response_code(400);
-                ob_end_clean();
-                echo json_encode(['success' => false, 'message' => 'Invalid email format', 'data' => []]);
-                exit;
-            }
-            
-            // Check if username exists
-            $existing = $admins_collection->findOne(['username' => $username]);
-            if ($existing) {
-                http_response_code(409);
-                ob_end_clean();
-                echo json_encode(['success' => false, 'message' => 'Username already exists', 'data' => []]);
-                exit;
-            }
-            
-            if (!in_array($role, array_keys(USER_ROLES))) {
-                $role = 'admin';
-            }
-            
-            if (!in_array($status, ['active', 'inactive'])) {
-                $status = 'active';
-            }
-            
-            // Insert user
-            $admins_collection->insertOne([
-                'username' => $username,
-                'email' => $email,
-                'password' => hashPassword($password),
-                'role' => $role,
-                'status' => $status,
-                'created_at' => new MongoDB\BSON\UTCDateTime(),
-                'created_by' => getLoggedInAdminUsername(),
-                'updated_at' => new MongoDB\BSON\UTCDateTime(),
-                'updated_by' => getLoggedInAdminUsername(),
-                'last_login' => null
-            ]);
-            
-            logActivity('USER_CREATED', 'Created user: ' . $username . ' with role: ' . $role);
-            ob_end_clean();
-            echo json_encode(['success' => true, 'message' => 'User created successfully!', 'data' => []]);
-            exit;
-        }
-        
-        // Update user
-        if ($ajax_action === 'update_user') {
-            $user_id = sanitizeInput($_POST['user_id'] ?? '');
-            $email = sanitizeInput($_POST['email'] ?? '');
-            $role = sanitizeInput($_POST['role'] ?? 'admin');
-            $status = sanitizeInput($_POST['status'] ?? 'active');
-            
-            if (!isValidObjectId($user_id)) {
-                http_response_code(400);
-                ob_end_clean();
-                echo json_encode(['success' => false, 'message' => 'Invalid user ID', 'data' => []]);
-                exit;
-            }
-            
-            if (!in_array($role, array_keys(USER_ROLES))) {
-                $role = 'admin';
-            }
-            
-            if (!in_array($status, ['active', 'inactive'])) {
-                $status = 'active';
-            }
-            
-            if (!empty($email) && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                http_response_code(400);
-                ob_end_clean();
-                echo json_encode(['success' => false, 'message' => 'Invalid email format', 'data' => []]);
-                exit;
-            }
-            
-            // Prevent self-demotion from admin
-            $user = $admins_collection->findOne(['_id' => new MongoDB\BSON\ObjectId($user_id)]);
-            $current_role = $user['role'] ?? 'admin';
-            
-            if ($current_role === 'admin' && $role !== 'admin' && objectIdToString($user['_id']) === getLoggedInAdmin()) {
-                http_response_code(403);
-                ob_end_clean();
-                echo json_encode(['success' => false, 'message' => 'You cannot remove your own admin role', 'data' => []]);
-                exit;
-            }
-            
-            $admins_collection->updateOne(
-                ['_id' => new MongoDB\BSON\ObjectId($user_id)],
-                [
-                    '$set' => [
-                        'email' => $email,
-                        'role' => $role,
-                        'status' => $status,
-                        'updated_at' => new MongoDB\BSON\UTCDateTime(),
-                        'updated_by' => getLoggedInAdminUsername()
-                    ]
-                ]
-            );
-            
-            logActivity('USER_UPDATED', 'Updated user ID: ' . $user_id . ', new role: ' . $role);
-            ob_end_clean();
-            echo json_encode(['success' => true, 'message' => 'User updated successfully!', 'data' => []]);
-            exit;
-        }
-        
-        // Delete user
-        if ($ajax_action === 'delete_user') {
-            $user_id = sanitizeInput($_POST['user_id'] ?? '');
-            
-            if (!isValidObjectId($user_id)) {
-                http_response_code(400);
-                ob_end_clean();
-                echo json_encode(['success' => false, 'message' => 'Invalid user ID', 'data' => []]);
-                exit;
-            }
-            
-            // Prevent self-deletion
-            if ($user_id === getLoggedInAdmin()) {
-                http_response_code(403);
-                ob_end_clean();
-                echo json_encode(['success' => false, 'message' => 'You cannot delete your own account', 'data' => []]);
-                exit;
-            }
-            
-            $user = $admins_collection->findOne(['_id' => new MongoDB\BSON\ObjectId($user_id)]);
-            
-            if (!$user) {
-                http_response_code(404);
-                ob_end_clean();
-                echo json_encode(['success' => false, 'message' => 'User not found', 'data' => []]);
-                exit;
-            }
-            
-            $admins_collection->deleteOne(['_id' => new MongoDB\BSON\ObjectId($user_id)]);
-            
-            logActivity('USER_DELETED', 'Deleted user: ' . ($user['username'] ?? 'Unknown'));
-            ob_end_clean();
-            echo json_encode(['success' => true, 'message' => 'User deleted successfully!', 'data' => []]);
-            exit;
-        }
-        
-        // Reset password
-        if ($ajax_action === 'reset_password') {
-            $user_id = sanitizeInput($_POST['user_id'] ?? '');
-            $new_password = $_POST['new_password'] ?? '';
-            
-            if (!isValidObjectId($user_id)) {
-                http_response_code(400);
-                ob_end_clean();
-                echo json_encode(['success' => false, 'message' => 'Invalid user ID', 'data' => []]);
-                exit;
-            }
-            
-            if (empty($new_password) || strlen($new_password) < 6) {
-                http_response_code(400);
-                ob_end_clean();
-                echo json_encode(['success' => false, 'message' => 'Password must be at least 6 characters', 'data' => []]);
-                exit;
-            }
-            
-            $user = $admins_collection->findOne(['_id' => new MongoDB\BSON\ObjectId($user_id)]);
-            
-            if (!$user) {
-                http_response_code(404);
-                ob_end_clean();
-                echo json_encode(['success' => false, 'message' => 'User not found', 'data' => []]);
-                exit;
-            }
-            
-            $admins_collection->updateOne(
-                ['_id' => new MongoDB\BSON\ObjectId($user_id)],
-                [
-                    '$set' => [
-                        'password' => hashPassword($new_password),
-                        'updated_at' => new MongoDB\BSON\UTCDateTime(),
-                        'updated_by' => getLoggedInAdminUsername()
-                    ]
-                ]
-            );
-            
-            logActivity('PASSWORD_RESET', 'Admin reset password for user ID: ' . $user_id);
-            ob_end_clean();
-            echo json_encode(['success' => true, 'message' => 'Password reset successfully!', 'data' => []]);
-            exit;
-        }
-        
-    } catch (\Exception $e) {
-        http_response_code(500);
-        error_log('AJAX Error: ' . $e->getMessage());
-        ob_end_clean();
-        echo json_encode([
-            'success' => false,
-            'message' => 'Server error: ' . $e->getMessage(),
-            'data' => []
-        ], JSON_UNESCAPED_UNICODE);
-        exit;
-    }
-    
-    exit;
-}
-
-// For non-AJAX requests, require admin role and output HTML
-requireRole('admin');
 
 $success_msg = getSuccessMessage();
 $error_msg = getErrorMessage();
@@ -616,8 +289,316 @@ while (ob_get_level()) {
     <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
     <script src="/teacher-eval/assets/js/main.js"></script>
-    <script src="/teacher-eval/assets/js/users.js"></script>
+    <script src="/teacher-eval/assets/js/api-service.js"></script>
     <script src="/teacher-eval/assets/js/export-pdf.js"></script>
+    
+    <script>
+        // Users Management - Uses APIService for all operations
+        const userModal = new bootstrap.Modal(document.getElementById('userModal'), {});
+        let usersTable = null;
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeUsersTable();
+            bindFormEvents();
+        });
+        
+        function initializeUsersTable() {
+            usersTable = $('#usersTable').DataTable({
+                processing: false,
+                serverSide: false,
+                columns: [
+                    { data: 'username', title: 'Username' },
+                    { data: 'email', title: 'Email' },
+                    { 
+                        data: 'role',
+                        title: 'Role',
+                        render: function(data, type, row) {
+                            const roleClass = data === 'admin' ? 'role-admin' : 'role-staff';
+                            const roleLabel = data === 'admin' ? 'Admin' : 'Staff';
+                            return `<span class="badge role-badge ${roleClass}">${roleLabel}</span>`;
+                        }
+                    },
+                    {
+                        data: 'status',
+                        title: 'Status',
+                        render: function(data) {
+                            const statusClass = data === 'active' ? 'status-active' : 'status-inactive';
+                            return `<span class="status-badge ${statusClass}">${data.toUpperCase()}</span>`;
+                        }
+                    },
+                    { 
+                        data: 'last_login', 
+                        title: 'Last Login',
+                        render: function(data) {
+                            return data && data !== 'Never' ? data : 'Never';
+                        }
+                    },
+                    { 
+                        data: 'created_by', 
+                        title: 'Created By',
+                        render: function(data) {
+                            return data || '-';
+                        }
+                    },
+                    {
+                        data: 'id',
+                        title: 'Actions',
+                        orderable: false,
+                        render: function(data, type, row) {
+                            return `
+                                <div class="btn-group" role="group">
+                                    <button class="btn btn-sm btn-outline-primary editBtn" data-user-id="${data}">
+                                        <i class="bi bi-pencil"></i> Edit
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger deleteBtn" data-user-id="${data}">
+                                        <i class="bi bi-trash"></i> Delete
+                                    </button>
+                                </div>
+                            `;
+                        }
+                    }
+                ],
+                order: [[0, 'asc']],
+                pageLength: 10,
+                language: {
+                    emptyTable: "No users found"
+                }
+            });
+            
+            loadUsers();
+        }
+        
+        function loadUsers() {
+            api.getUsers()
+                .then(response => {
+                    console.log('Users response:', response);
+                    if (response.success) {
+                        // Handle paginated response or raw array
+                        let data = response.data;
+                        if (data && data.data && Array.isArray(data.data)) {
+                            data = data.data;  // Extract from paginated wrapper
+                        } else if (!Array.isArray(data)) {
+                            data = [];
+                        }
+                        
+                        usersTable.clear().rows.add(data).draw();
+                        attachRowEventHandlers();
+                    } else {
+                        showError(response.message || 'Failed to load users');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading users:', error);
+                    showError('Error loading users: ' + error.message);
+                });
+        }
+        
+        function attachRowEventHandlers() {
+            $('#usersTable tbody').off('click'); // Remove previous handlers
+            
+            $('#usersTable tbody').on('click', '.editBtn', function() {
+                const userId = $(this).data('user-id');
+                editUser(userId);
+            });
+            
+            $('#usersTable tbody').on('click', '.deleteBtn', function() {
+                const userId = $(this).data('user-id');
+                deleteUser(userId);
+            });
+        }
+        
+        function openUserModal() {
+            document.getElementById('userForm').reset();
+            document.getElementById('userIdInput').value = '';
+            document.getElementById('ajaxActionInput').value = 'add_user';
+            document.getElementById('modalTitle').textContent = 'Add New User';
+            document.getElementById('passwordField').style.display = 'block';
+            document.getElementById('passwordNote').textContent = 'Required for new users';
+            document.getElementById('user_password').required = true;
+            userModal.show();
+        }
+        
+        function editUser(userId) {
+            api.getUser(userId)
+                .then(response => {
+                    if (response.success && response.data) {
+                        const user = response.data;
+                        document.getElementById('username').value = user.username;
+                        document.getElementById('username').disabled = true; // Cannot change username
+                        document.getElementById('user_email').value = user.email || '';
+                        document.getElementById('user_role').value = user.role;
+                        document.getElementById('user_status').value = user.status;
+                        document.getElementById('userIdInput').value = userId;
+                        document.getElementById('ajaxActionInput').value = 'update_user';
+                        document.getElementById('modalTitle').textContent = 'Edit User';
+                        document.getElementById('passwordField').style.display = 'none';
+                        document.getElementById('user_password').required = false;
+                        userModal.show();
+                    } else {
+                        showError('Failed to load user details');
+                    }
+                })
+                .catch(error => showError('Error: ' + error.message));
+        }
+        
+        function deleteUser(userId) {
+            Swal.fire({
+                title: 'Delete User?',
+                text: 'This action cannot be undone.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                confirmButtonText: 'Delete',
+                cancelButtonText: 'Cancel'
+            }).then(result => {
+                if (result.isConfirmed) {
+                    api.deleteUser(userId)
+                        .then(response => {
+                            if (response.success) {
+                                showSuccess(response.message || 'User deleted successfully');
+                                loadUsers();
+                            } else {
+                                showError(response.message || 'Failed to delete user');
+                            }
+                        })
+                        .catch(error => showError('Error: ' + error.message));
+                }
+            });
+        }
+        
+        function bindFormEvents() {
+            document.getElementById('userForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const isEditing = document.getElementById('userIdInput').value !== '';
+                const username = document.getElementById('username').value.trim();
+                const email = document.getElementById('user_email').value.trim();
+                const password = document.getElementById('user_password').value;
+                const role = document.getElementById('user_role').value;
+                const status = document.getElementById('user_status').value;
+                
+                // Clear previous errors
+                document.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+                document.querySelectorAll('.invalid-feedback').forEach(el => el.remove());
+                
+                if (isEditing) {
+                    api.updateUser(document.getElementById('userIdInput').value, {
+                        email: email,
+                        role: role,
+                        status: status
+                    })
+                        .then(response => {
+                            if (response.success) {
+                                showSuccess(response.message || 'User updated successfully');
+                                userModal.hide();
+                                document.getElementById('username').disabled = false;
+                                loadUsers();
+                            } else {
+                                handleValidationErrors(response);
+                                showError(response.message || 'Failed to update user');
+                            }
+                        })
+                        .catch(error => showError('Error: ' + error.message));
+                } else {
+                    api.createUser({
+                        username: username,
+                        email: email,
+                        password: password,
+                        role: role,
+                        status: status
+                    })
+                        .then(response => {
+                            if (response.success) {
+                                showSuccess(response.message || 'User created successfully');
+                                userModal.hide();
+                                loadUsers();
+                            } else {
+                                handleValidationErrors(response);
+                                showError(response.message || 'Failed to create user');
+                            }
+                        })
+                        .catch(error => showError('Error: ' + error.message));
+                }
+            });
+        }
+        
+        function handleValidationErrors(response) {
+            if (response.data && response.data.errors) {
+                const errors = response.data.errors;
+                
+                // Map field names to input IDs
+                const fieldMap = {
+                    'username': 'username',
+                    'email': 'user_email',
+                    'password': 'user_password',
+                    'role': 'user_role',
+                    'status': 'user_status'
+                };
+                
+                Object.entries(errors).forEach(([field, messages]) => {
+                    const fieldId = fieldMap[field];
+                    if (fieldId) {
+                        const element = document.getElementById(fieldId);
+                        if (element) {
+                            element.classList.add('is-invalid');
+                            const feedback = document.createElement('div');
+                            feedback.className = 'invalid-feedback d-block';
+                            feedback.textContent = Array.isArray(messages) ? messages[0] : messages;
+                            element.parentNode.appendChild(feedback);
+                        }
+                    }
+                });
+            }
+        }
+        
+        function exportUsersPDF() {
+            const rows = usersTable.rows({ search: 'applied' }).data().toArray();
+            const doc = new jsPDF();
+            
+            doc.setFontSize(16);
+            doc.text('Users Report', 14, 22);
+            
+            doc.setFontSize(11);
+            doc.text('Generated: ' + new Date().toLocaleString(), 14, 32);
+            
+            const columns = ['Username', 'Email', 'Role', 'Status', 'Created By'];
+            const data = rows.map(row => [
+                row.username,
+                row.email,
+                row.role_display,
+                row.status,
+                row.created_by
+            ]);
+            
+            doc.autoTable({
+                startY: 40,
+                head: [columns],
+                body: data,
+                theme: 'grid',
+                styles: { fontSize: 10 }
+            });
+            
+            doc.save('users_' + new Date().getTime() + '.pdf');
+        }
+        
+        function showSuccess(message) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Success',
+                text: message,
+                timer: 2000,
+                showConfirmButton: false
+            });
+        }
+        
+        function showError(message) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: message
+            });
+        }
+    </script>
     
     <!-- Footer -->
     <?php include '../includes/footer.php'; ?>

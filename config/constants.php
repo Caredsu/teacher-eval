@@ -14,8 +14,9 @@ define('APP_DEBUG', APP_ENV === 'development');
 // ============================================================================
 // DATABASE
 // ============================================================================
-define('DB_HOST', getenv('DB_HOST') ?: 'mongodb://localhost:27017');
-define('DB_NAME', getenv('DB_NAME') ?: 'teacher_eval');
+define('DB_HOST', getenv('DB_HOST') ?: 'localhost');
+define('DB_PORT', getenv('DB_PORT') ?: 27017);
+define('DB_NAME', getenv('DB_NAME') ?: 'teacher_evaluation');
 
 // ============================================================================
 // COLLECTIONS

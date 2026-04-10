@@ -177,6 +177,7 @@ foreach ($teacher_stats as $teacher_id => &$stats) {
         <div class="row mb-4">
             <div class="col-md-6">
                 <h1 class="h2"><i class="bi bi-graph-up"></i> Analytics Dashboard</h1>
+                <p class="text-muted">View evaluation analytics and insights</p>
             </div>
             <div class="col-md-6 text-end">
                 <button class="btn btn-outline-secondary me-2" onclick="exportAnalyticsPDF()">

@@ -168,29 +168,53 @@ function exportQuestionsData() {
  * Export Results Data
  */
 function exportResultsData() {
-    global $evaluations_collection, $teachers_collection;
+    global $evaluations_collection, $teachers_collection, $questions_collection;
     
     try {
-        $results = $evaluations_collection->find([], ['sort' => ['submitted_at' => -1]])->toArray();
+        $filter = [];
+        $teacher_id = isset($_GET['teacher_id']) ? sanitizeInput($_GET['teacher_id']) : '';
+        
+        // Filter by teacher if specified
+        if (!empty($teacher_id) && isValidObjectId($teacher_id)) {
+            $filter['teacher_id'] = new MongoDB\BSON\ObjectId($teacher_id);
+        }
+        
+        $results = $evaluations_collection->find($filter, ['sort' => ['submitted_at' => -1]])->toArray();
+        
+        // Get teacher info (if filtering by teacher)
+        $teacher_info = null;
+        if (!empty($teacher_id) && isValidObjectId($teacher_id)) {
+            $teacher_info = $teachers_collection->findOne(['_id' => new MongoDB\BSON\ObjectId($teacher_id)]);
+        }
+        
         $rows = [];
+        $ratings = [];
+        $evaluations_data = [];
         
         foreach ($results as $result) {
-            // Get teacher info
-            $teacher_id = $result['teacher_id'] ?? null;
+            // Get teacher info if not already fetched
             $teacher_name = 'N/A';
             $teacher_department = 'N/A';
             
-            if ($teacher_id) {
-                $teacher = $teachers_collection->findOne(['_id' => $teacher_id]);
-                if ($teacher) {
+            if (!$teacher_info && isset($result['teacher_id'])) {
+                $teacher_data = $teachers_collection->findOne(['_id' => new MongoDB\BSON\ObjectId($result['teacher_id'])]);
+                if ($teacher_data) {
                     $teacher_name = trim(
-                        ($teacher['first_name'] ?? '') . ' ' .
-                        ($teacher['middle_name'] ?? '') . ' ' .
-                        ($teacher['last_name'] ?? '')
+                        ($teacher_data['first_name'] ?? '') . ' ' .
+                        ($teacher_data['middle_name'] ?? '') . ' ' .
+                        ($teacher_data['last_name'] ?? '')
                     );
                     $teacher_name = preg_replace('/\s+/', ' ', $teacher_name);
-                    $teacher_department = (string)($teacher['department'] ?? 'N/A');
+                    $teacher_department = (string)($teacher_data['department'] ?? 'N/A');
                 }
+            } elseif ($teacher_info) {
+                $teacher_name = trim(
+                    ($teacher_info['first_name'] ?? '') . ' ' .
+                    ($teacher_info['middle_name'] ?? '') . ' ' .
+                    ($teacher_info['last_name'] ?? '')
+                );
+                $teacher_name = preg_replace('/\s+/', ' ', $teacher_name);
+                $teacher_department = (string)($teacher_info['department'] ?? 'N/A');
             }
             
             // Calculate average rating from answers
@@ -205,6 +229,15 @@ function exportResultsData() {
             
             $avg_rating = count($answers) > 0 ? round($total_rating / count($answers), 2) : 0;
             $feedback = (string)($result['feedback'] ?? '');
+            $ratings[] = $avg_rating;
+            
+            // For individual evaluations
+            $evaluations_data[] = [
+                'submitted_date' => formatDateTime($result['submitted_at'] ?? ''),
+                'avg_rating' => $avg_rating,
+                'feedback' => $feedback,
+                'details' => $answers
+            ];
             
             $rows[] = [
                 'Teacher' => (string)$teacher_name,
@@ -212,6 +245,32 @@ function exportResultsData() {
                 'Average Rating' => (float)$avg_rating,
                 'Overall Feedback' => $feedback,
                 'Date Submitted' => (string)formatDateTime($result['submitted_at'] ?? '')
+            ];
+        }
+        
+        // Calculate statistics if filtered by teacher
+        if ($teacher_info && !empty($evaluations_data)) {
+            $overall_avg = count($ratings) > 0 ? round(array_sum($ratings) / count($ratings), 2) : 0;
+            $highest_rating = count($ratings) > 0 ? max($ratings) : 0;
+            $lowest_rating = count($ratings) > 0 ? min($ratings) : 0;
+            
+            $teacher_name = trim(
+                ($teacher_info['first_name'] ?? '') . ' ' .
+                ($teacher_info['middle_name'] ?? '') . ' ' .
+                ($teacher_info['last_name'] ?? '')
+            );
+            $teacher_name = preg_replace('/\s+/', ' ', $teacher_name);
+            
+            return [
+                'title' => 'Evaluation Results',
+                'filename' => 'EvaluationResults_' . date('Y-m-d_His') . '.pdf',
+                'teacher_name' => $teacher_name,
+                'department' => (string)($teacher_info['department'] ?? 'N/A'),
+                'overall_avg' => $overall_avg,
+                'highest_rating' => $highest_rating,
+                'lowest_rating' => $lowest_rating,
+                'evaluations' => $evaluations_data,
+                'rows' => $rows
             ];
         }
         

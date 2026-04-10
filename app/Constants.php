@@ -9,7 +9,7 @@ define('APP_VERSION', '2.0.0');
 
 // Database
 define('DB_NAME', 'teacher_evaluation');
-define('DB_HOST', 'localhost');
+define('DB_HOST', '127.0.0.1');  // Force localhost - MUST BE THIS VALUE
 define('DB_PORT', 27017);
 
 // Paths

@@ -49,16 +49,39 @@ class Evaluation
     }
 
     /**
-     * Create new evaluation
+     * Create new evaluation with semester/year tracking
      */
     public function create($data)
     {
+        // Auto-detect academic year and semester
+        $now = new \DateTime('now', new \DateTimeZone('Asia/Manila'));
+        $currentMonth = (int)$now->format('m');
+        $currentYear = (int)$now->format('Y');
+        
+        // Academic year: Jan-June = current year, July-Dec = current year (next year is start)
+        // So: Jan 2026 - June 2026 = 2025-2026, July 2026 - Dec 2026 = 2026-2027
+        if ($currentMonth >= 7) {
+            $academicYear = $currentYear . '-' . ($currentYear + 1);
+        } else {
+            $academicYear = ($currentYear - 1) . '-' . $currentYear;
+        }
+        
+        // Semester: 1 (Jan-June), 2 (July-Dec)
+        $semester = ($currentMonth >= 1 && $currentMonth <= 6) ? 1 : 2;
+        $period = $academicYear . '-SEM' . $semester;
+        
         $evaluation = [
             'teacher_id' => $data['teacher_id'] ?? '',
             'subject' => $data['subject'] ?? '',
             'answers' => $data['answers'] ?? [],
+            'feedback' => $data['feedback'] ?? '',
+            'academic_year' => $academicYear,
+            'semester' => $semester,
+            'period' => $period,
+            'session_identifier' => $data['session_identifier'] ?? $_SERVER['REMOTE_ADDR'],
             'ip_address' => $data['ip_address'] ?? $_SERVER['REMOTE_ADDR'],
             'user_agent' => $data['user_agent'] ?? $_SERVER['HTTP_USER_AGENT'] ?? '',
+            'submitted_at' => new \MongoDB\BSON\UTCDateTime(),
             'created_at' => new \MongoDB\BSON\UTCDateTime(),
         ];
 
@@ -157,5 +180,108 @@ class Evaluation
         return $this->collection->countDocuments([
             'created_at' => ['$gte' => $start]
         ]);
+    }
+
+    /**
+     * Get evaluations by semester
+     */
+    public function getBySemester($teacherId, $academicYear, $semester, $limit = null)
+    {
+        $query = [];
+        
+        if (!empty($teacherId)) {
+            $query['teacher_id'] = $teacherId;
+        }
+        
+        if (!empty($academicYear)) {
+            $query['academic_year'] = $academicYear;
+        }
+        
+        if (!empty($semester)) {
+            $query['semester'] = (int)$semester;
+        }
+        
+        $options = ['sort' => ['submitted_at' => -1]];
+        if ($limit) {
+            $options['limit'] = $limit;
+        }
+        
+        return $this->collection->find($query, $options);
+    }
+
+    /**
+     * Get evaluations by academic year
+     */
+    public function getByYear($teacherId, $academicYear, $limit = null)
+    {
+        $query = [];
+        
+        if (!empty($teacherId)) {
+            $query['teacher_id'] = $teacherId;
+        }
+        
+        if (!empty($academicYear)) {
+            $query['academic_year'] = $academicYear;
+        }
+        
+        $options = ['sort' => ['submitted_at' => -1]];
+        if ($limit) {
+            $options['limit'] = $limit;
+        }
+        
+        return $this->collection->find($query, $options);
+    }
+
+    /**
+     * Get all unique academic years in collection
+     */
+    public function getAcademicYears()
+    {
+        $result = $this->collection->aggregate([
+            ['$group' => ['_id' => '$academic_year']],
+            ['$sort' => ['_id' => -1]]
+        ]);
+        
+        $years = [];
+        foreach ($result as $doc) {
+            if (!empty($doc['_id'])) {
+                $years[] = $doc['_id'];
+            }
+        }
+        return $years;
+    }
+
+    /**
+     * Get statistics by semester
+     */
+    public function getStatisticsBySemester($academicYear, $semester)
+    {
+        $pipeline = [
+            ['$match' => [
+                'academic_year' => $academicYear,
+                'semester' => (int)$semester
+            ]],
+            ['$group' => [
+                '_id' => null,
+                'total' => ['$sum' => 1],
+                'teachers_count' => ['$addToSet' => '$teacher_id'],
+                'avg_rating' => [
+                    '$avg' => [
+                        '$avg' => '$answers.rating'
+                    ]
+                ]
+            ]],
+            ['$project' => [
+                'total' => 1,
+                'teachers_count' => ['$size' => '$teachers_count'],
+                'avg_rating' => ['$round' => ['$avg_rating', 2]]
+            ]]
+        ];
+        
+        $result = $this->collection->aggregate($pipeline);
+        foreach ($result as $doc) {
+            return $doc;
+        }
+        return null;
     }
 }

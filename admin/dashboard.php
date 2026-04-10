@@ -15,6 +15,14 @@ if ($show_skeleton) {
     unset($_SESSION['just_logged_in']);
 }
 
+// Initialize variables with defaults
+$total_teachers = 0;
+$total_questions = 0;
+$total_evaluations = 0;
+$teacher_ratings = [];
+$recent_evaluations = [];
+$error = null;
+
 // Get dashboard statistics
 try {
     $total_teachers = $teachers_collection->countDocuments();

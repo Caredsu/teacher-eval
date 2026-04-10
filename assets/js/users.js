@@ -49,8 +49,8 @@ function initializeUsersTable() {
                     : '<span class="status-badge status-inactive">✗ Inactive</span>';
                 return badge;
             }},
-            { data: 'created_at', name: 'created_at', width: '15%' },
             { data: 'last_login', name: 'last_login', width: '15%' },
+            { data: 'created_by', name: 'created_by', width: '15%' },
             { data: '_id', name: 'actions', width: '15%', orderable: false, searchable: false, render: function(data) {
                 return `
                     <button class="btn btn-sm btn-outline-primary btn-edit-user" data-id="${data}" title="Edit">
