@@ -75,6 +75,7 @@ const ROLE_PERMISSIONS = [
     'staff' => [
         'view_dashboard',
         'manage_teachers',
+        'manage_questions',
         'manage_evaluations',
         'view_results',
         'export_data'

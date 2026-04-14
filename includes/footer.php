@@ -6,8 +6,8 @@
 
 <style>
     .footer-minimal {
-        background: #1e2a3a;
-        border-top: 1px solid #34495e;
+        background: #f8fafc;
+        border-top: 1px solid #e2e8f0;
         padding: 1.5rem 0;
         margin-top: auto;
         text-align: center;
@@ -16,7 +16,7 @@
 
     .footer-minimal p {
         margin: 0;
-        color: #bdc3c7;
+        color: #000000;
         font-size: 13px;
         font-weight: 500;
     }

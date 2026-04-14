@@ -40,15 +40,20 @@ try {
                 'middle_name' => $teacher['middle_name'] ?? '',
                 'department' => $teacher['department'] ?? '',
                 'email' => $teacher['email'] ?? '',
-                'status' => $teacher['status'] ?? 'active'
+                'status' => $teacher['status'] ?? 'active',
+                'picture' => $teacher['picture'] ?? null,
+                'created_at' => isset($teacher['created_at']) ? $teacher['created_at']->toDateTime()->format('Y-m-d H:i:s') : '',
+                'updated_at' => isset($teacher['updated_at']) ? $teacher['updated_at']->toDateTime()->format('Y-m-d H:i:s') : '',
+                'updated_by' => $teacher['updated_by'] ?? 'system'
             ];
         }, $teachers);
 
         sendSuccess($formattedTeachers, 'Teachers retrieved successfully', 200);
 
     } elseif ($method === 'POST') {
-        // Add new teacher - requires superadmin
-        $user = requireAuth(['superadmin']);
+        // Add new teacher - requires manage_teachers permission
+        requireLogin();
+        requirePermission('manage_teachers');
 
         $body = getJsonBody();
         if (!$body) {
@@ -89,8 +94,9 @@ try {
         ], 'Teacher added successfully', 201);
 
     } elseif ($method === 'PUT') {
-        // Edit teacher - requires superadmin
-        $user = requireAuth(['superadmin']);
+        // Edit teacher - requires manage_teachers permission
+        requireLogin();
+        requirePermission('manage_teachers');
 
         $id = getIdFromPath();
         if (!$id) {
@@ -137,6 +143,7 @@ try {
         }
 
         $updateData['updated_at'] = new MongoDB\BSON\UTCDateTime(time() * 1000);
+        $updateData['updated_by'] = $_SESSION['admin_username'] ?? $_SESSION['admin_id'] ?? 'system';
 
         // Update teacher
         $teachers_collection->updateOne(
@@ -155,8 +162,9 @@ try {
         ], 'Teacher updated successfully', 200);
 
     } elseif ($method === 'DELETE') {
-        // Delete teacher - requires superadmin
-        $user = requireAuth(['superadmin']);
+        // Delete teacher - requires manage_teachers permission
+        requireLogin();
+        requirePermission('manage_teachers');
 
         $id = getIdFromPath();
         if (!$id) {

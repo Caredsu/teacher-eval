@@ -95,7 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Fullbright College Inc. - Teacher Evaluation System">
-    <meta name="theme-color" content="#667eea">
+    <meta name="theme-color" content="#3B82F6">
     <title>Admin Login - Fullbright College Inc.</title>
     
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
@@ -115,24 +115,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             position: relative;
             overflow-x: hidden;
+            background-color: #1e293b;
         }
 
-        body::after {
+        body::before {
             content: '';
-            position: absolute;
+            position: fixed;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
+            background-image: url('/teacher-eval/assets/img/1.png');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            z-index: -2;
             pointer-events: none;
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(30, 41, 59, 0.85);
             z-index: -1;
+            pointer-events: none;
         }
 
         .login-wrapper {
@@ -142,6 +158,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             padding: 20px;
             z-index: 1;
             animation: fadeIn 0.6s ease-out;
+            position: relative;
         }
 
         @keyframes fadeIn {
@@ -196,9 +213,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .login-info h1 {
             font-size: clamp(32px, 5vw, 48px);
             font-weight: 800;
-            color: white;
+            background: linear-gradient(135deg, #ffffff 0%, #e0f2fe 50%, #bfdbfe 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
             margin-bottom: 15px;
             line-height: 1.2;
+            text-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            letter-spacing: -0.5px;
+            filter: drop-shadow(0 4px 12px rgba(59, 130, 246, 0.3));
         }
 
         .login-info .subtitle {
@@ -234,12 +257,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .login-form-container {
             animation: slideInRight 0.8s ease-out;
             background: rgba(255, 255, 255, 0.15);
-            border-radius: 20px;
-            padding: 50px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
-            backdrop-filter: blur(15px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-radius: 16px;
+            padding: 45px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), 0 0 40px rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.25);
             position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .login-form-container:hover {
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), 0 0 60px rgba(59, 130, 246, 0.25);
+            border-color: rgba(255, 255, 255, 0.35);
         }
 
         .form-header {
@@ -278,26 +308,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         .role-btn.active {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-color: #667eea;
+            background: linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%);
+            border-color: #3B82F6;
             color: white;
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
         }
 
         .form-header .icon {
             width: 60px;
             height: 60px;
             margin: 0 auto 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%);
             border-radius: 15px;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 32px;
+            color: white;
         }
 
         .form-header h2 {
-            color: white;
+            color: #ffffff;
             font-size: 28px;
             font-weight: 700;
             margin-bottom: 10px;
@@ -327,9 +358,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
+        .forgot-password {
+            text-align: right;
+            margin-bottom: 25px;
+        }
+
+        .forgot-password a {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 13px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .forgot-password a:hover {
+            color: #3B82F6;
+            text-decoration: underline;
+        }
+
         .alert-danger {
-            background: linear-gradient(135deg, #fee 0%, #fdd 100%);
-            border-left: 4px solid #dc3545;
+            background: rgba(220, 38, 38, 0.15);
+            border-left: 4px solid rgba(220, 38, 38, 0.6);
+            color: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
         }
 
         .form-group {
@@ -346,24 +397,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         .form-control {
             border: 2px solid rgba(255, 255, 255, 0.3);
-            border-radius: 12px;
+            border-radius: 10px;
             padding: 14px 16px;
             font-size: 15px;
             transition: all 0.3s ease;
             width: 100%;
-            background-color: rgba(255, 255, 255, 0.95);
-            color: #333;
+            background-color: rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+            position: relative;
         }
 
         .form-control:focus {
             outline: none;
-            border-color: rgba(255, 255, 255, 0.8);
-            box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.2);
-            background-color: white;
+            border-color: rgba(59, 130, 246, 0.8);
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.3), inset 0 0 10px rgba(59, 130, 246, 0.1);
+            background-color: rgba(255, 255, 255, 0.25);
         }
 
         .form-control::placeholder {
-            color: #999;
+            color: rgba(255, 255, 255, 0.5);
         }
 
         .form-check {
@@ -376,16 +428,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .form-check-input {
             width: 20px;
             height: 20px;
-            border: 2px solid #e0e0e0;
+            border: 2px solid rgba(255, 255, 255, 0.4);
             border-radius: 6px;
             cursor: pointer;
-            accent-color: #667eea;
+            accent-color: #3B82F6;
             transition: all 0.3s ease;
+            background-color: rgba(255, 255, 255, 0.1);
         }
 
         .form-check-input:checked {
-            background-color: #667eea;
-            border-color: #667eea;
+            background-color: #3B82F6;
+            border-color: #3B82F6;
         }
 
         .form-check-label {
@@ -398,28 +451,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         .btn-login {
             width: 100%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%);
             border: none;
             color: white;
             padding: 16px;
             font-weight: 700;
-            border-radius: 12px;
+            border-radius: 10px;
             font-size: 16px;
             cursor: pointer;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
             margin-bottom: 20px;
             position: relative;
             overflow: hidden;
         }
 
+        .btn-login::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .btn-login:hover:not(:disabled)::before {
+            left: 100%;
+        }
+
         .btn-login:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.5), 0 0 30px rgba(59, 130, 246, 0.3);
         }
 
         .btn-login:active:not(:disabled) {
-            transform: translateY(0);
+            transform: translateY(-1px);
         }
 
         .btn-login:disabled {
@@ -459,7 +527,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             width: 60px;
             height: 60px;
             border: 4px solid rgba(255, 255, 255, 0.3);
-            border-top-color: #667eea;
+            border-top-color: #3B82F6;
             border-radius: 50%;
             animation: spin 1s linear infinite;
             margin: 0 auto 20px;
@@ -653,35 +721,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     <!-- Username -->
                     <div class="form-group">
-                        <label for="username" class="form-label">
-                            <i class="bi bi-person" style="margin-right: 6px;"></i>Username
-                        </label>
-                        <input 
-                            type="text" 
-                            class="form-control" 
-                            id="username" 
-                            name="username" 
-                            placeholder="Enter your username"
-                            required
-                            autofocus
-                            aria-label="Username"
-                        >
+                        <label for="username" class="form-label">Username</label>
+                        <div style="position: relative;">
+                            <i class="bi bi-person-fill" style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: #ffffff; font-size: 24px; pointer-events: none; z-index: 10; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));"></i>
+                            <input 
+                                type="text" 
+                                class="form-control" 
+                                id="username" 
+                                name="username" 
+                                placeholder="Enter your username"
+                                required
+                                autofocus
+                                aria-label="Username"
+                                style="padding-left: 55px;"
+                            >
+                        </div>
                     </div>
 
                     <!-- Password -->
                     <div class="form-group">
-                        <label for="password" class="form-label">
-                            <i class="bi bi-lock" style="margin-right: 6px;"></i>Password
-                        </label>
-                        <input 
-                            type="password" 
-                            class="form-control" 
-                            id="password" 
-                            name="password" 
-                            placeholder="Enter your password"
-                            required
-                            aria-label="Password"
-                        >
+                        <label for="password" class="form-label">Password</label>
+                        <div style="position: relative;">
+                            <i class="bi bi-lock-fill" style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: #ffffff; font-size: 24px; pointer-events: none; z-index: 10; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));"></i>
+                            <input 
+                                type="password" 
+                                class="form-control" 
+                                id="password" 
+                                name="password" 
+                                placeholder="Enter your password"
+                                required
+                                aria-label="Password"
+                                style="padding-left: 55px;"
+                            >
+                        </div>
                     </div>
 
                     <!-- Remember Me -->
@@ -695,6 +767,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <label class="form-check-label" for="remember">
                             Remember me for 30 days
                         </label>
+                    </div>
+
+                    <!-- Forgot Password Link -->
+                    <div class="forgot-password">
+                        <a href="#">Forgot your password?</a>
                     </div>
 
                     <!-- Submit Button -->

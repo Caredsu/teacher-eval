@@ -77,9 +77,9 @@ foreach ($teacher_stats as $teacher_id => &$stats) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Analytics Dashboard - Teacher Evaluation System</title>
+    <title>Analytics - Teacher Evaluation System</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="/teacher-eval/assets/css/dark-theme.css">
+    <link rel="stylesheet" href="/teacher-eval/assets/css/dark-theme.css?v=2.0">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
@@ -164,19 +164,69 @@ foreach ($teacher_stats as $teacher_id => &$stats) {
         body.dark-mode .teacher-rating-row {
             border-bottom-color: #444;
         }
+        
+        /* Skeleton Loader Styles */
+        .skeleton-loader {
+            display: none !important;
+            position: fixed;
+            top: 70px;
+            left: 0;
+            right: 0;
+            width: 100%;
+            z-index: 999;
+            background: #f8fafc;
+        }
+        
+        .skeleton-loader.loading {
+            display: block !important;
+        }
+        
+        .skeleton-loader.loading ~ .content-loader {
+            display: none !important;
+        }
+        
+        .content-loader {
+            display: block !important;
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
     </style>
 </head>
 <body>
     <!-- Navbar -->
     <?php include '../includes/navbar.php'; ?>
     
+    <!-- Skeleton Loader -->
+    <div class="skeleton-loader loading" data-show-skeleton="true">
+        <div class="container-fluid py-5">
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div style="height: 30px; background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%); background-size: 200% 100%; animation: skeleton-loading 1.5s infinite; border-radius: 4px; margin-bottom: 10px;"></div>
+                    <div style="height: 16px; width: 60%; background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%); background-size: 200% 100%; animation: skeleton-loading 1.5s infinite; border-radius: 4px;"></div>
+                </div>
+            </div>
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div style="height: 40px; background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%); background-size: 200% 100%; animation: skeleton-loading 1.5s infinite; border-radius: 4px; margin-bottom: 15px;"></div>
+                    <div style="height: 300px; background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%); background-size: 200% 100%; animation: skeleton-loading 1.5s infinite; border-radius: 4px;"></div>
+                </div>
+            </div>
+        </div>
+        <style>
+            @keyframes skeleton-loading {
+                0% { background-position: 200% 0; }
+                100% { background-position: -200% 0; }
+            }
+        </style>
+    </div>
+    
     <!-- Main Content Wrapper -->
-    <div class="main-content">
-        <div class="container-fluid py-4">
+    <div class="content-loader active">
+        <div class="container-fluid py-5">
         <!-- Header -->
         <div class="row mb-4">
             <div class="col-md-6">
-                <h1 class="h2"><i class="bi bi-graph-up"></i> Analytics Dashboard</h1>
+                <h1 class="h2"><i class="bi bi-pie-chart"></i> Analytics Dashboard</h1>
                 <p class="text-muted">View evaluation analytics and insights</p>
             </div>
             <div class="col-md-6 text-end">
@@ -206,55 +256,39 @@ foreach ($teacher_stats as $teacher_id => &$stats) {
         <!-- Summary Statistics - Simple Design -->
         <div class="row g-3 mb-4">
             <div class="col-lg-3 col-md-6">
-                <div style="background: #2c3e50; border: 1px solid #3d5066; border-radius: 10px; padding: 20px; border-left: 4px solid #667eea; display: flex; justify-content: space-between; align-items: flex-start;">
+                <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 20px; border-left: 4px solid #8b5cf6; display: flex; justify-content: space-between; align-items: flex-start;">
                     <div>
-                        <p style="margin: 0 0 8px 0; color: #999; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 500;">📊 Total Evaluations</p>
-                        <h2 style="margin: 0; font-size: 28px; font-weight: 700; color: #ffffff;"><?= $total_evaluations ?></h2>
+                        <p style="margin: 0 0 8px 0; color: #000000; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 500;">📊 Total Evaluations</p>
+                        <h2 style="margin: 0; font-size: 28px; font-weight: 700; color: #000000;"><?= $total_evaluations ?></h2>
                     </div>
                     <div style="font-size: 32px; opacity: 0.3;">📈</div>
                 </div>
             </div>
             <div class="col-lg-3 col-md-6">
-                <div style="background: #2c3e50; border: 1px solid #3d5066; border-radius: 10px; padding: 20px; border-left: 4px solid #764ba2; display: flex; justify-content: space-between; align-items: flex-start;">
+                <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 20px; border-left: 4px solid #8b5cf6; display: flex; justify-content: space-between; align-items: flex-start;">
                     <div>
-                        <p style="margin: 0 0 8px 0; color: #999; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 500;">👨‍🏫 Teachers Evaluated</p>
-                        <h2 style="margin: 0; font-size: 28px; font-weight: 700; color: #ffffff;"><?= count($teacher_stats) ?></h2>
+                        <p style="margin: 0 0 8px 0; color: #000000; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 500;">👨‍🏫 Teachers Evaluated</p>
+                        <h2 style="margin: 0; font-size: 28px; font-weight: 700; color: #000000;"><?= count($teacher_stats) ?></h2>
                     </div>
                     <div style="font-size: 32px; opacity: 0.3;">👥</div>
                 </div>
             </div>
             <div class="col-lg-3 col-md-6">
-                <div style="background: #2c3e50; border: 1px solid #3d5066; border-radius: 10px; padding: 20px; border-left: 4px solid #3498db; display: flex; justify-content: space-between; align-items: flex-start;">
+                <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 20px; border-left: 4px solid #06b6d4; display: flex; justify-content: space-between; align-items: flex-start;">
                     <div>
-                        <p style="margin: 0 0 8px 0; color: #999; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 500;">⭐ Overall Average</p>
-                        <h2 style="margin: 0; font-size: 28px; font-weight: 700; color: #ffffff;"><?= !empty($all_ratings) ? number_format(array_sum($all_ratings) / count($all_ratings), 2) : '0.00' ?>/5</h2>
+                        <p style="margin: 0 0 8px 0; color: #000000; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 500;">⭐ Overall Average</p>
+                        <h2 style="margin: 0; font-size: 28px; font-weight: 700; color: #000000;"><?= !empty($all_ratings) ? number_format(array_sum($all_ratings) / count($all_ratings), 2) : '0.00' ?>/5</h2>
                     </div>
                     <div style="font-size: 32px; opacity: 0.3;">🌟</div>
                 </div>
             </div>
             <div class="col-lg-3 col-md-6">
-                <div style="background: #2c3e50; border: 1px solid #3d5066; border-radius: 10px; padding: 20px; border-left: 4px solid #f39c12; display: flex; justify-content: space-between; align-items: flex-start;">
+                <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 20px; border-left: 4px solid #f59e0b; display: flex; justify-content: space-between; align-items: flex-start;">
                     <div>
-                        <p style="margin: 0 0 8px 0; color: #999; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 500;">📝 Total Ratings</p>
-                        <h2 style="margin: 0; font-size: 28px; font-weight: 700; color: #ffffff;"><?= count($all_ratings) ?></h2>
+                        <p style="margin: 0 0 8px 0; color: #000000; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 500;">📝 Total Ratings</p>
+                        <h2 style="margin: 0; font-size: 28px; font-weight: 700; color: #000000;"><?= count($all_ratings) ?></h2>
                     </div>
                     <div style="font-size: 32px; opacity: 0.3;">💬</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Rating Distribution Chart -->
-        <div class="row mt-5">
-            <div class="col-md-6">
-                <div class="card border-0 shadow-sm">
-                    <div class="card-header bg-light">
-                        <h5 class="mb-0"><i class="bi bi-pie-chart"></i> Rating Distribution</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="chart-container">
-                            <canvas id="distributionChart"></canvas>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
@@ -307,6 +341,22 @@ foreach ($teacher_stats as $teacher_id => &$stats) {
                 </div>
             </div>
         </div>
+
+        <!-- Rating Distribution Chart -->
+        <div class="row mt-5">
+            <div class="col-md-6">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0"><i class="bi bi-pie-chart"></i> Rating Distribution</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="distributionChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
     </div>  <!-- Close main-content -->
 
@@ -350,6 +400,18 @@ foreach ($teacher_stats as $teacher_id => &$stats) {
                         labels: { padding: 15 }
                     }
                 }
+            }
+        });
+    </script>
+    
+    <script>
+        // Hide skeleton loader when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            const skeletonLoader = document.querySelector('.skeleton-loader');
+            if (skeletonLoader) {
+                setTimeout(function() {
+                    skeletonLoader.classList.remove('loading');
+                }, 300);
             }
         });
     </script>

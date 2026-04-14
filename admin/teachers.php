@@ -9,7 +9,7 @@ require_once '../config/database.php';
 
 initializeSession();
 requireLogin();
-requireRole('admin');
+requirePermission('manage_teachers');
 
 // Constants for validation
 const ALLOWED_DEPARTMENTS = ['ECT', 'EDUC', 'CCJE', 'BHT'];
@@ -20,9 +20,9 @@ const ALLOWED_DEPARTMENTS = ['ECT', 'EDUC', 'CCJE', 'BHT'];
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Teachers Management - Teacher Evaluation System</title>
+    <title>Teachers - Teacher Evaluation System</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="/teacher-eval/assets/css/dark-theme.css">
+    <link rel="stylesheet" href="/teacher-eval/assets/css/dark-theme.css?v=2.0">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
@@ -115,14 +115,125 @@ const ALLOWED_DEPARTMENTS = ['ECT', 'EDUC', 'CCJE', 'BHT'];
             animation-play-state: paused !important;
             -webkit-animation-play-state: paused !important;
         }
+
+        /* Icon-only button styles */
+        .btn-icon {
+            width: 36px;
+            height: 36px;
+            padding: 0 !important;
+            border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 1.5px solid #667eea;
+            background: transparent !important;
+            color: #667eea;
+            font-size: 16px;
+            transition: all 0.2s ease;
+            margin: 0 4px;
+        }
+
+        .btn-icon:hover {
+            background: #667eea !important;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-icon.deleteBtn {
+            border-color: #dc3545;
+            color: #dc3545;
+        }
+
+        .btn-icon.deleteBtn:hover {
+            background: #dc3545 !important;
+            color: white;
+            box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+        }
+
+        body.dark-mode .btn-icon {
+            border-color: #8b9eff;
+            color: #8b9eff;
+        }
+
+        body.dark-mode .btn-icon:hover {
+            background: #667eea !important;
+            color: white;
+        }
+
+        body.dark-mode .btn-icon.deleteBtn {
+            border-color: #ff6b6b;
+            color: #ff6b6b;
+        }
+
+        body.dark-mode .btn-icon.deleteBtn:hover {
+            background: #dc3545 !important;
+            color: white;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 4px;
+            justify-content: center;
+        }
+        
+        /* Skeleton Loader Styles */
+        .skeleton-loader {
+            display: none !important;
+            position: fixed;
+            top: 70px;
+            left: 0;
+            right: 0;
+            width: 100%;
+            z-index: 999;
+            background: #f8fafc;
+        }
+        
+        .skeleton-loader.loading {
+            display: block !important;
+        }
+        
+        .skeleton-loader.loading ~ .content-loader {
+            display: none !important;
+        }
+        
+        .content-loader {
+            display: block !important;
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
     </style>
 </head>
 <body>
     <!-- Navbar -->
     <?php include '../includes/navbar.php'; ?>
     
+    <!-- Skeleton Loader -->
+    <div class="skeleton-loader loading" data-show-skeleton="true">
+        <div class="container-fluid py-5">
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div style="height: 30px; background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%); background-size: 200% 100%; animation: skeleton-loading 1.5s infinite; border-radius: 4px; margin-bottom: 10px;"></div>
+                    <div style="height: 16px; width: 60%; background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%); background-size: 200% 100%; animation: skeleton-loading 1.5s infinite; border-radius: 4px;"></div>
+                </div>
+            </div>
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div style="height: 40px; background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%); background-size: 200% 100%; animation: skeleton-loading 1.5s infinite; border-radius: 4px; margin-bottom: 15px;"></div>
+                    <div style="height: 300px; background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%); background-size: 200% 100%; animation: skeleton-loading 1.5s infinite; border-radius: 4px;"></div>
+                </div>
+            </div>
+        </div>
+        <style>
+            @keyframes skeleton-loading {
+                0% { background-position: 200% 0; }
+                100% { background-position: -200% 0; }
+            }
+        </style>
+    </div>
+    
     <!-- Main Content Wrapper -->
-    <div class="main-content">
+    <div class="content-loader active">
         <div class="container-fluid py-5">
             <div class="row mb-4">
                 <div class="col-md-6">
@@ -155,6 +266,7 @@ const ALLOWED_DEPARTMENTS = ['ECT', 'EDUC', 'CCJE', 'BHT'];
                                     <th>Status</th>
                                     <th>Created</th>
                                     <th>Last Updated</th>
+                                    <th>Updated By</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -249,6 +361,26 @@ const ALLOWED_DEPARTMENTS = ['ECT', 'EDUC', 'CCJE', 'BHT'];
                                 <option value="inactive">Inactive</option>
                             </select>
                         </div>
+
+                        <!-- Picture Upload -->
+                        <div class="mb-3">
+                            <label for="picture" class="form-label">Teacher Picture</label>
+                            <div class="d-flex gap-3 align-items-start">
+                                <div>
+                                    <input 
+                                        type="file" 
+                                        class="form-control" 
+                                        id="picture" 
+                                        name="picture"
+                                        accept="image/*"
+                                    >
+                                    <small class="text-muted d-block mt-1">Supported: JPG, PNG (Max 5MB)</small>
+                                </div>
+                                <div>
+                                    <img id="picturePreview" src="" alt="Teacher Picture" style="max-width: 100px; max-height: 100px; border-radius: 8px; display: none; object-fit: cover;">
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     
                     <div class="modal-footer">
@@ -273,12 +405,23 @@ const ALLOWED_DEPARTMENTS = ['ECT', 'EDUC', 'CCJE', 'BHT'];
     <script src="/teacher-eval/assets/js/api-service.js"></script>
     <script src="/teacher-eval/assets/js/export-pdf.js"></script>
     
+    <!-- Expose user role to JavaScript -->
+    <script>
+        const currentUserRole = '<?php echo getUserRole(); ?>';
+    </script>
+
     <script>
         // Teachers Management - Uses APIService for all operations
         const teacherModal = new bootstrap.Modal(document.getElementById('teacherModal'), {});
         let teachersTable = null;
         
         document.addEventListener('DOMContentLoaded', () => {
+            const skeletonLoader = document.querySelector('.skeleton-loader');
+            if (skeletonLoader) {
+                setTimeout(function() {
+                    skeletonLoader.classList.remove('loading');
+                }, 300);
+            }
             initializeTeachersTable();
             bindFormEvents();
         });
@@ -307,21 +450,27 @@ const ALLOWED_DEPARTMENTS = ['ECT', 'EDUC', 'CCJE', 'BHT'];
                     },
                     { data: 'created_at', title: 'Created' },
                     { data: 'updated_at', title: 'Last Updated' },
+                    { data: 'updated_by', title: 'Updated By' },
                     {
                         data: 'id',
                         title: 'Actions',
                         orderable: false,
                         render: function(data, type, row) {
-                            return `
-                                <div class="btn-group" role="group">
-                                    <button class="btn btn-sm btn-outline-primary editBtn" data-teacher-id="${data}">
-                                        <i class="bi bi-pencil"></i> Edit
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-danger deleteBtn" data-teacher-id="${data}">
-                                        <i class="bi bi-trash"></i> Delete
-                                    </button>
-                                </div>
-                            `;
+                            let actions = `
+                                <div class="action-buttons">
+                                    <button class="btn btn-icon editBtn" data-teacher-id="${data}" data-bs-toggle="tooltip" data-bs-title="Edit">
+                                        <i class="bi bi-pencil-fill"></i>
+                                    </button>`;
+                            
+                            // Only show delete button for admin
+                            if (currentUserRole === 'admin') {
+                                actions += `<button class="btn btn-icon deleteBtn" data-teacher-id="${data}" data-bs-toggle="tooltip" data-bs-title="Delete">
+                                        <i class="bi bi-trash-fill"></i>
+                                    </button>`;
+                            }
+                            
+                            actions += `</div>`;
+                            return actions;
                         }
                     }
                 ],
@@ -355,6 +504,7 @@ const ALLOWED_DEPARTMENTS = ['ECT', 'EDUC', 'CCJE', 'BHT'];
                         }));
                         teachersTable.clear().rows.add(formattedData).draw();
                         attachRowEventHandlers();
+                        initializeTooltips();
                     } else {
                         showError('Failed to load teachers');
                     }
@@ -379,9 +529,27 @@ const ALLOWED_DEPARTMENTS = ['ECT', 'EDUC', 'CCJE', 'BHT'];
             });
         }
         
+        function initializeTooltips() {
+            // Destroy existing tooltips
+            document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(tooltipTriggerEl => {
+                const existingTooltip = bootstrap.Tooltip.getInstance(tooltipTriggerEl);
+                if (existingTooltip) {
+                    existingTooltip.dispose();
+                }
+            });
+            
+            // Initialize new tooltips
+            document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(tooltipTriggerEl => {
+                new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+        }
+        
         function openTeacherModal() {
             document.getElementById('teacherForm').reset();
+            document.getElementById('picturePreview').style.display = 'none';
+            document.getElementById('picturePreview').src = '';
             document.getElementById('modalTitle').textContent = 'Add New Teacher';
+            delete document.getElementById('teacherForm').dataset.teacherId;
             teacherModal.show();
         }
         
@@ -396,6 +564,17 @@ const ALLOWED_DEPARTMENTS = ['ECT', 'EDUC', 'CCJE', 'BHT'];
                         document.getElementById('department').value = teacher.department || '';
                         document.getElementById('email').value = teacher.email || '';
                         document.getElementById('status').value = teacher.status || 'active';
+                        
+                        // Show existing picture if available
+                        const picturePreview = document.getElementById('picturePreview');
+                        if (teacher.picture) {
+                            picturePreview.src = teacher.picture;
+                            picturePreview.style.display = 'block';
+                        } else {
+                            picturePreview.style.display = 'none';
+                            picturePreview.src = '';
+                        }
+                        
                         document.getElementById('teacherForm').dataset.teacherId = teacherId;
                         document.getElementById('modalTitle').textContent = 'Edit Teacher';
                         teacherModal.show();
@@ -432,6 +611,38 @@ const ALLOWED_DEPARTMENTS = ['ECT', 'EDUC', 'CCJE', 'BHT'];
         }
         
         function bindFormEvents() {
+            // Handle picture file selection
+            document.getElementById('picture').addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    // Validate file size (5MB max)
+                    if (file.size > 5 * 1024 * 1024) {
+                        showError('Picture size must be less than 5MB');
+                        this.value = '';
+                        return;
+                    }
+                    
+                    // Validate file type
+                    if (!file.type.startsWith('image/')) {
+                        showError('Please select a valid image file');
+                        this.value = '';
+                        return;
+                    }
+                    
+                    // Show preview
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        const preview = document.getElementById('picturePreview');
+                        preview.src = event.target.result;
+                        preview.style.display = 'block';
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    document.getElementById('picturePreview').style.display = 'none';
+                }
+            });
+            
+            // Handle form submission
             document.getElementById('teacherForm').addEventListener('submit', function(e) {
                 e.preventDefault();
                 
@@ -443,54 +654,77 @@ const ALLOWED_DEPARTMENTS = ['ECT', 'EDUC', 'CCJE', 'BHT'];
                 const department = document.getElementById('department').value;
                 const email = document.getElementById('email').value.trim();
                 const status = document.getElementById('status').value;
+                const pictureInput = document.getElementById('picture');
                 
                 // Clear previous errors
                 document.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
                 document.querySelectorAll('.invalid-feedback').forEach(el => el.remove());
                 
-                if (isEditing) {
-                    api.updateTeacher(teacherId, {
-                        first_name: firstName,
-                        middle_name: middleName,
-                        last_name: lastName,
-                        department: department,
-                        email: email,
-                        status: status
-                    })
-                        .then(response => {
-                            if (response.success) {
-                                showSuccess(response.message || 'Teacher updated successfully');
-                                teacherModal.hide();
-                                delete this.dataset.teacherId;
-                                loadTeachers();
-                            } else {
-                                handleValidationErrors(response);
-                                showError(response.message || 'Failed to update teacher');
-                            }
-                        })
-                        .catch(error => showError('Error: ' + error.message));
+                // Prepare base data
+                const data = {
+                    first_name: firstName,
+                    middle_name: middleName,
+                    last_name: lastName,
+                    department: department,
+                    email: email,
+                    status: status
+                };
+                
+                // Handle picture upload if file selected
+                if (pictureInput.files.length > 0) {
+                    // For large files, only add picture if file is reasonable size (< 1MB for base64)
+                    const file = pictureInput.files[0];
+                    if (file.size > 1048576) { // 1MB limit
+                        showError('Picture file is too large. Max 1MB. Consider reducing image resolution.');
+                        return;
+                    }
+                    
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        data.picture = event.target.result; // Base64 encoded image
+                        submitTeacherForm(teacherId, isEditing, data);
+                    };
+                    reader.readAsDataURL(file);
                 } else {
-                    api.createTeacher({
-                        first_name: firstName,
-                        middle_name: middleName,
-                        last_name: lastName,
-                        department: department,
-                        email: email,
-                        status: status
-                    })
-                        .then(response => {
-                            if (response.success) {
-                                showSuccess(response.message || 'Teacher created successfully');
-                                teacherModal.hide();
-                                loadTeachers();
-                            } else {
-                                handleValidationErrors(response);
-                                showError(response.message || 'Failed to create teacher');
-                            }
-                        })
-                        .catch(error => showError('Error: ' + error.message));
+                    submitTeacherForm(teacherId, isEditing, data);
                 }
             });
+        }
+        
+        function submitTeacherForm(teacherId, isEditing, data) {
+            if (isEditing) {
+                // When editing, include picture if provided
+                api.updateTeacher(teacherId, data)
+                    .then(response => {
+                        if (response.success) {
+                            showSuccess(response.message || 'Teacher updated successfully');
+                            document.getElementById('teacherForm').reset();
+                            delete document.getElementById('teacherForm').dataset.teacherId;
+                            teacherModal.hide();
+                            loadTeachers();
+                        } else {
+                            handleValidationErrors(response);
+                            showError(response.message || 'Failed to update teacher');
+                        }
+                    })
+                    .catch(error => showError('Error: ' + error.message));
+            } else {
+                // When creating, include picture if provided
+                api.createTeacher(data)
+                    .then(response => {
+                        if (response.success) {
+                            showSuccess(response.message || 'Teacher created successfully');
+                            document.getElementById('teacherForm').reset();
+                            delete document.getElementById('teacherForm').dataset.teacherId;
+                            teacherModal.hide();
+                            loadTeachers();
+                        } else {
+                            handleValidationErrors(response);
+                            showError(response.message || 'Failed to create teacher');
+                        }
+                    })
+                    .catch(error => showError('Error: ' + error.message));
+            }
         }
         
         function handleValidationErrors(response) {

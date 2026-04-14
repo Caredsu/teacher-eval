@@ -14,7 +14,11 @@ static $__mongo_instance = null;
 
 if ($__mongo_instance === null) {
     try {
-        $uri = 'mongodb://' . DB_HOST . ':' . DB_PORT;
+        // For MongoDB Atlas, use the full connection string from DB_HOST
+        // For local MongoDB, construct from DB_HOST:DB_PORT
+        $uri = (strpos(DB_HOST, 'mongodb+srv://') === 0) 
+            ? DB_HOST 
+            : 'mongodb://' . DB_HOST . ':' . (defined('DB_PORT') ? DB_PORT : 27017);
         
         $options = [
             'connectTimeoutMS' => 10000,         
@@ -23,7 +27,7 @@ if ($__mongo_instance === null) {
             'maxPoolSize' => 10,                 // Reuse connections
             'minPoolSize' => 2,                  
             'waitQueueTimeoutMS' => 5000,        
-            'retryWrites' => false,              
+            'retryWrites' => true,              
         ];
         
         $__mongo_instance = new MongoClient($uri, $options);

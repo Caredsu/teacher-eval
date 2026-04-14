@@ -4,6 +4,8 @@
  * Provides consistent header, navbar, and footer across all admin pages
  */
 
+require_once __DIR__ . '/helpers.php';
+
 function renderAdminLayout($pageTitle = '', $pageContent = '', $pageScripts = '', $extraCss = '') {
     $admin_username = getLoggedInAdminUsername();
     $admin_role = getUserRole();

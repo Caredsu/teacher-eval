@@ -14,31 +14,45 @@ class TeacherValidator extends Validator
     {
         $this->errors = [];
         
-        // Name
-        if (!isset($data['name']) || !$this->required('name', $data['name'])) {
+        // First Name or Last Name required
+        if (empty($data['first_name']) && empty($data['last_name'])) {
+            $this->addError('name', 'First name or last name is required');
             return;
         }
-        $this->max('name', $data['name'], 100);
         
         // Email
         if (!isset($data['email']) || !$this->required('email', $data['email'])) {
+            $this->addError('email', 'Email is required');
             return;
         }
         $this->email('email', $data['email']);
+        
+        // First name (optional)
+        if (isset($data['first_name'])) {
+            $this->max('first_name', $data['first_name'], 50);
+        }
+        
+        // Last name (optional)
+        if (isset($data['last_name'])) {
+            $this->max('last_name', $data['last_name'], 50);
+        }
         
         // Department (optional)
         if (isset($data['department'])) {
             $this->max('department', $data['department'], 100);
         }
         
-        // Subject (optional)
-        if (isset($data['subject'])) {
-            $this->max('subject', $data['subject'], 100);
+        // Status (optional)
+        if (isset($data['status'])) {
+            $this->in('status', $data['status'], ['active', 'inactive']);
         }
         
-        // Status
-        if (isset($data['status'])) {
-            $this->in('status', $data['status'], ['active', 'inactive', 'on_leave']);
+        // Picture (optional - should be base64 encoded)
+        if (isset($data['picture']) && !empty($data['picture'])) {
+            // Validate that it looks like a base64 image data URL
+            if (!preg_match('/^data:image\/\w+;base64,/', $data['picture'])) {
+                $this->addError('picture', 'Picture must be a valid image');
+            }
         }
     }
     
@@ -49,29 +63,37 @@ class TeacherValidator extends Validator
     {
         $this->errors = [];
         
-        // Name
-        if (isset($data['name'])) {
-            $this->max('name', $data['name'], 100);
+        // First name (optional)
+        if (isset($data['first_name'])) {
+            $this->max('first_name', $data['first_name'], 50);
         }
         
-        // Email
+        // Last name (optional)
+        if (isset($data['last_name'])) {
+            $this->max('last_name', $data['last_name'], 50);
+        }
+        
+        // Email (optional)
         if (isset($data['email'])) {
             $this->email('email', $data['email']);
         }
         
-        // Department
+        // Department (optional)
         if (isset($data['department'])) {
             $this->max('department', $data['department'], 100);
         }
         
-        // Subject
-        if (isset($data['subject'])) {
-            $this->max('subject', $data['subject'], 100);
+        // Status (optional)
+        if (isset($data['status'])) {
+            $this->in('status', $data['status'], ['active', 'inactive']);
         }
         
-        // Status
-        if (isset($data['status'])) {
-            $this->in('status', $data['status'], ['active', 'inactive', 'on_leave']);
+        // Picture (optional - should be base64 encoded)
+        if (isset($data['picture']) && !empty($data['picture'])) {
+            // Validate that it looks like a base64 image data URL
+            if (!preg_match('/^data:image\/\w+;base64,/', $data['picture'])) {
+                $this->addError('picture', 'Picture must be a valid image');
+            }
         }
     }
 }

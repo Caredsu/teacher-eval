@@ -80,6 +80,7 @@ class TeacherService
             'email' => $data['email'],
             'department' => $data['department'] ?? '',
             'status' => $data['status'] ?? 'active',
+            'picture' => $data['picture'] ?? null,
             'created_at' => new UTCDateTime(),
             'updated_at' => new UTCDateTime()
         ];
@@ -98,14 +99,17 @@ class TeacherService
     /**
      * Update teacher
      */
-    public function update($id, $data)
+    public function update($id, $data, $userId = null)
     {
         $teacher = $this->repository->findById($id);
         if (!$teacher) {
             throw new NotFoundException('Teacher not found');
         }
         
-        $updateData = ['updated_at' => new UTCDateTime()];
+        $updateData = [
+            'updated_at' => new UTCDateTime(),
+            'updated_by' => $userId ?? 'system'
+        ];
         
         if (isset($data['first_name'])) {
             $updateData['first_name'] = $data['first_name'];
@@ -138,6 +142,10 @@ class TeacherService
         
         if (isset($data['status'])) {
             $updateData['status'] = $data['status'];
+        }
+        
+        if (isset($data['picture'])) {
+            $updateData['picture'] = $data['picture'];
         }
         
         $this->repository->update($id, $updateData);
@@ -175,8 +183,10 @@ class TeacherService
             'email' => $teacher['email'] ?? '',
             'department' => $teacher['department'] ?? '',
             'status' => $teacher['status'] ?? 'active',
+            'picture' => $teacher['picture'] ?? null,
             'created_at' => isset($teacher['created_at']) ? $teacher['created_at']->toDateTime()->format('Y-m-d H:i:s') : '',
-            'updated_at' => isset($teacher['updated_at']) ? $teacher['updated_at']->toDateTime()->format('Y-m-d H:i:s') : ''
+            'updated_at' => isset($teacher['updated_at']) ? $teacher['updated_at']->toDateTime()->format('Y-m-d H:i:s') : '',
+            'updated_by' => $teacher['updated_by'] ?? 'system'
         ];
     }
 }

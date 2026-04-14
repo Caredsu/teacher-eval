@@ -9,6 +9,161 @@ require_once '../config/database.php';
 initializeSession();
 requireLogin();
 
+// Handle AJAX notification count request
+if (isset($_GET['get_notif_count'])) {
+    header('Content-Type: application/json');
+    try {
+        $total_count = $evaluations_collection->countDocuments();
+        echo json_encode(['count' => $total_count]);
+    } catch (\Exception $e) {
+        echo json_encode(['count' => 0]);
+    }
+    exit;
+}
+
+// Handle AJAX clear notifications request
+if (isset($_GET['clear_notifications'])) {
+    header('Content-Type: application/json');
+    try {
+        // Get current total count and save it as the baseline
+        $current_count = $evaluations_collection->countDocuments();
+        $_SESSION['notifications_cleared_at'] = (string)$current_count;
+        echo json_encode(['success' => true]);
+    } catch (\Exception $e) {
+        echo json_encode(['success' => false]);
+    }
+    exit;
+}
+
+// Handle AJAX get notifications request
+if (isset($_GET['get_notifications'])) {
+    header('Content-Type: application/json');
+    try {
+        $total_count = $evaluations_collection->countDocuments();
+        
+        // Get cleared baseline from session
+        $cleared_baseline = isset($_SESSION['notifications_cleared_at']) 
+            ? (int)$_SESSION['notifications_cleared_at'] 
+            : 0;
+        
+        // Calculate "new" notifications since last clear (for badge)
+        $new_count = max(0, $total_count - $cleared_baseline);
+        
+        // But ALWAYS show last 5 evaluations in the list
+        $recent_evals = $evaluations_collection->find(
+            [],
+            ['sort' => ['submitted_at' => -1], 'limit' => 5]
+        );
+        
+        $notifications = [];
+        foreach ($recent_evals as $eval) {
+            $teacher_name = 'Anonymous';
+            $teacher_id = $eval['teacher_id'] ?? null;
+            
+            if ($teacher_id) {
+                try {
+                    if (strlen($teacher_id) === 24 && ctype_xdigit($teacher_id)) {
+                        $teacher = $teachers_collection->findOne(['_id' => new MongoDB\BSON\ObjectId($teacher_id)]);
+                    } else {
+                        $teacher = $teachers_collection->findOne(['_id' => $teacher_id]);
+                    }
+                    
+                    if ($teacher) {
+                        $teacher_name = $teacher['name'] ?? 'Anonymous';
+                    }
+                } catch (\Exception $e) {
+                    $teacher_name = 'Anonymous';
+                }
+            }
+            
+            // Format time
+            $time_text = 'just now';
+            if (isset($eval['submitted_at'])) {
+                try {
+                    $date_obj = $eval['submitted_at'];
+                    if ($date_obj instanceof MongoDB\BSON\UTCDateTime) {
+                        $timestamp = $date_obj->toDateTime();
+                    } elseif ($date_obj instanceof DateTime) {
+                        $timestamp = $date_obj;
+                    } else {
+                        $timestamp = new DateTime();
+                    }
+                    
+                    $now = new DateTime();
+                    $diff = $now->getTimestamp() - $timestamp->getTimestamp();
+                    
+                    if ($diff < 60) {
+                        $time_text = 'just now';
+                    } elseif ($diff < 3600) {
+                        $mins = floor($diff / 60);
+                        $time_text = $mins . ' min' . ($mins > 1 ? 's' : '') . ' ago';
+                    } elseif ($diff < 86400) {
+                        $hours = floor($diff / 3600);
+                        $time_text = $hours . ' hour' . ($hours > 1 ? 's' : '') . ' ago';
+                    } else {
+                        $days = floor($diff / 86400);
+                        $time_text = $days . ' day' . ($days > 1 ? 's' : '') . ' ago';
+                    }
+                } catch (\Exception $e) {
+                    $time_text = 'recently';
+                }
+            }
+            
+            $notifications[] = [
+                'title' => $teacher_name . ' was evaluated',
+                'time' => $time_text
+            ];
+        }
+        
+        echo json_encode([
+            'count' => $new_count,
+            'total' => $total_count,
+            'notifications' => $notifications
+        ]);
+    } catch (\Exception $e) {
+        error_log('Get notifications error: ' . $e->getMessage());
+        echo json_encode(['count' => 0, 'total' => 0, 'notifications' => []]);
+    }
+    exit;
+}
+
+// Handle AJAX notification count request (legacy)
+if (isset($_GET['get_notif_count'])) {
+    header('Content-Type: application/json');
+    try {
+        $total_count = $evaluations_collection->countDocuments();
+        echo json_encode(['count' => $total_count]);
+    } catch (\Exception $e) {
+        echo json_encode(['count' => 0]);
+    }
+    exit;
+}
+
+// Handle AJAX polling request
+if (isset($_GET['check_new'])) {
+    header('Content-Type: application/json');
+    try {
+        $latestEval = $evaluations_collection->findOne([], ['sort' => ['_id' => -1]]);
+        $latestId = $latestEval ? (string)$latestEval['_id'] : null;
+        
+        // Compare with client's last known ID - treat empty string as null for first check
+        $clientLastId = isset($_GET['lastId']) && $_GET['lastId'] !== '' ? $_GET['lastId'] : null;
+        $hasNew = ($latestId && $latestId !== $clientLastId);
+        
+        // Debug logging
+        error_log("Poll check - Latest: $latestId, Client: $clientLastId, HasNew: " . ($hasNew ? 'true' : 'false'));
+        
+        echo json_encode([
+            'has_new' => $hasNew,
+            'latest_id' => $latestId
+        ]);
+    } catch (\Exception $e) {
+        error_log("Poll check error: " . $e->getMessage());
+        echo json_encode(['has_new' => false, 'latest_id' => null]);
+    }
+    exit;
+}
+
 // Check if just logged in and unset the flag
 $show_skeleton = isset($_SESSION['just_logged_in']) && $_SESSION['just_logged_in'];
 if ($show_skeleton) {
@@ -26,7 +181,7 @@ $error = null;
 // Get dashboard statistics
 try {
     $total_teachers = $teachers_collection->countDocuments();
-    $total_questions = $questions_collection->countDocuments();
+    $total_questions = $questions_collection->countDocuments(['status' => 'active']);
     $total_evaluations = $evaluations_collection->countDocuments();
     
     // Get recent evaluations with teacher info
@@ -41,9 +196,18 @@ try {
     
     foreach ($teachers as $teacher) {
         $teacher_id = (string) $teacher['_id'];
+        
+        // Debug: Count evaluations for this teacher
+        $eval_count = $evaluations_collection->countDocuments(['teacher_id' => $teacher_id]);
+        
         $avg_rating = $evaluations_collection->aggregate([
             [
-                '$match' => ['teacher_id' => $teacher_id]
+                '$match' => [
+                    '$or' => [
+                        ['teacher_id' => $teacher_id],
+                        ['teacher_id' => new MongoDB\BSON\ObjectId($teacher_id)]
+                    ]
+                ]
             ],
             [
                 '$unwind' => '$answers'
@@ -61,11 +225,30 @@ try {
             $avg_rating_value = round($result['avg_rating'], 2);
         }
         
+        // Debug logging
+        error_log("Teacher {$teacher_id}: {$eval_count} evaluations, avg_rating: {$avg_rating_value}");
+        
+        $full_name = trim(($teacher['first_name'] ?? '') . ' ' . ($teacher['middle_name'] ?? '') . ' ' . ($teacher['last_name'] ?? ''));
+        
         $teacher_ratings[] = [
-            'name' => $teacher['name'] ?? 'Unknown',
+            'name' => !empty($full_name) ? $full_name : 'Anonymous',
             'avg_rating' => $avg_rating_value
         ];
     }
+    
+    // Calculate key metrics
+    $completion_rate = $total_teachers > 0 ? round(($total_evaluations / $total_teachers) * 100, 1) : 0;
+    
+    // Get top performers (top 3 teachers by rating)
+    usort($teacher_ratings, function($a, $b) {
+        return $b['avg_rating'] <=> $a['avg_rating'];
+    });
+    $top_performers = array_slice($teacher_ratings, 0, 3);
+    
+    // Calculate average rating
+    $overall_avg_rating = count($teacher_ratings) > 0 
+        ? round(array_sum(array_column($teacher_ratings, 'avg_rating')) / count($teacher_ratings), 2)
+        : 0;
     
 } catch (\Exception $e) {
     $error = 'Error fetching dashboard data: ' . $e->getMessage();
@@ -78,42 +261,42 @@ try {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - Teacher Evaluation System</title>
+    <title>Dashboard - Teacher Evaluation System</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="/teacher-eval/assets/css/dark-theme.css">
+    <link rel="stylesheet" href="/teacher-eval/assets/css/dark-theme.css?v=2.0">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
     <style>
-        /* Dark Minimalist Theme */
+        /* Light Modern Theme */
         body {
-            background: #1e2a3a !important;
-            color: #ecf0f1;
+            background: #f8fafc !important;
+            color: #000000;
         }
         
         .card {
-            background: #2c3e50 !important;
-            border-color: #475569 !important;
-            color: #ecf0f1;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            background: #ffffff !important;
+            border-color: #e2e8f0 !important;
+            color: #000000;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         }
         
         .card-header {
-            background: #34495e !important;
-            border-color: #475569 !important;
-            color: #ecf0f1 !important;
+            background: #f1f5f9 !important;
+            border-color: #e2e8f0 !important;
+            color: #000000 !important;
         }
         
         .card-body {
-            color: #ecf0f1;
+            color: #000000;
         }
         
         .table {
-            color: #bdc3c7;
+            color: #000000;
         }
         
         .table-light {
-            background: #34495e !important;
+            background: #f1f5f9 !important;
         }
         
         .table-hover tbody tr,
@@ -135,60 +318,60 @@ try {
         }
         
         .table-hover tbody tr:hover {
-            background: #475569 !important;
+            background: #f1f5f9 !important;
             animation: none !important;
             transition: none !important;
             animation-play-state: paused !important;
         }
         
         .table .thead-light th {
-            background: #34495e !important;
-            color: #ecf0f1 !important;
-            border-color: #475569 !important;
+            background: #f1f5f9 !important;
+            color: #1e293b !important;
+            border-color: #e2e8f0 !important;
         }
         
         .text-muted {
-            color: #a0a9b8 !important;
+            color: #000000 !important;
         }
         
         .btn-primary {
-            background: #3498db !important;
-            border-color: #3498db !important;
+            background: #8b5cf6 !important;
+            border-color: #8b5cf6 !important;
             color: #fff !important;
         }
         
         .btn-primary:hover {
-            background: #2980b9 !important;
+            background: #7c3aed !important;
         }
         
         .btn-info {
-            background: #3498db !important;
-            border-color: #3498db !important;
+            background: #8b5cf6 !important;
+            border-color: #8b5cf6 !important;
             color: #fff !important;
         }
         
         .btn-outline-primary {
-            color: #3498db !important;
-            border-color: #3498db !important;
+            color: #8b5cf6 !important;
+            border-color: #8b5cf6 !important;
         }
         
         .btn-outline-primary:hover {
-            background: #3498db !important;
+            background: #8b5cf6 !important;
             color: #fff !important;
         }
         
         .badge {
-            background: #3498db !important;
+            background: #8b5cf6 !important;
             color: #fff !important;
         }
         
         h1, h2, h3, h4, h5, h6 {
-            color: #ecf0f1 !important;
+            color: #000000 !important;
         }
         
         /* Skeleton Loading */
         .skeleton {
-            background: linear-gradient(90deg, #0f3460 25%, #1a3050 50%, #0f3460 75%);
+            background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
             background-size: 200% 100%;
             animation: skeleton-loading 1.5s infinite;
         }
@@ -204,8 +387,8 @@ try {
 
         .skeleton-card {
             border: none;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-            background: #16213e !important;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            background: #f1f5f9 !important;
         }
 
         .skeleton-text {
@@ -234,7 +417,7 @@ try {
 
         .content-loader {
             display: none;
-            background: #1a1e2e;
+            background: #f8fafc;
             min-height: 100vh;
         }
 
@@ -244,7 +427,7 @@ try {
 
         .skeleton-loader {
             display: none;
-            background: #1a1e2e;
+            background: #f8fafc;
         }
 
         .skeleton-loader.loading {
@@ -328,131 +511,138 @@ try {
                 <p class="text-muted">Welcome back, <?= escapeOutput($_SESSION['admin_username'] ?? 'Admin') ?>!</p>
             </div>
             <div class="col-md-4 text-end">
-                <a href="teachers.php" class="btn btn-primary btn-sm">
-                    <i class="bi bi-plus"></i> Add Teacher
-                </a>
-                <a href="questions.php" class="btn btn-info btn-sm">
-                    <i class="bi bi-plus"></i> Add Question
-                </a>
+                <div id="toast-container"></div>
             </div>
         </div>
         
-        <!-- Statistics Cards -->
-        <div class="row g-4 mb-4">
-            <!-- Teachers Card -->
-            <div class="col-md-3">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-body">
-                        <div class="d-flex align-items-center">
-                            <div class="flex-grow-1">
-                                <p class="text-muted mb-1">Total Teachers</p>
-                                <h3 class="mb-0"><?= $total_teachers ?></h3>
-                            </div>
-                            <div class="text-primary fs-1 opacity-50">
-                                <i class="bi bi-people"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Questions Card -->
-            <div class="col-md-3">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-body">
-                        <div class="d-flex align-items-center">
-                            <div class="flex-grow-1">
-                                <p class="text-muted mb-1">Questions</p>
-                                <h3 class="mb-0"><?= $total_questions ?></h3>
-                            </div>
-                            <div class="text-success fs-1 opacity-50">
-                                <i class="bi bi-question-circle"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Evaluations Card -->
-            <div class="col-md-3">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-body">
-                        <div class="d-flex align-items-center">
-                            <div class="flex-grow-1">
-                                <p class="text-muted mb-1">Total Evaluations</p>
-                                <h3 class="mb-0"><?= $total_evaluations ?></h3>
-                            </div>
-                            <div class="text-info fs-1 opacity-50">
-                                <i class="bi bi-bar-chart"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Average Rating Card -->
-            <div class="col-md-3">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-body">
-                        <div class="d-flex align-items-center">
-                            <div class="flex-grow-1">
-                                <p class="text-muted mb-1">Avg Rating</p>
-                                <h3 class="mb-0">
-                                    <?php
-                                    if (count($teacher_ratings) > 0) {
-                                        $avg = array_sum(array_column($teacher_ratings, 'avg_rating')) / count($teacher_ratings);
-                                        echo round($avg, 1);
-                                    } else {
-                                        echo 'N/A';
-                                    }
-                                    ?>
-                                </h3>
-                            </div>
-                            <div class="text-warning fs-1 opacity-50">
-                                <i class="bi bi-star"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Generate Report Card -->
-        <div class="row g-4 mb-4">
+        <!-- Key Metrics Row -->
+        <div class="row g-3 mt-2">
             <div class="col-md-4">
-                <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
-                    <div class="card-body d-flex flex-column justify-content-center align-items-center text-center py-5">
-                        <div class="fs-1 mb-3">
-                            <i class="bi bi-file-earmark-pdf"></i>
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <p class="text-muted mb-1 small">Overall Rating</p>
+                                <h4 class="mb-0"><?= $overall_avg_rating ?>/5.0</h4>
+                                <small class="text-warning"><i class="bi bi-star-fill"></i> Average score</small>
+                            </div>
+                            <div class="text-warning fs-4">
+                                <i class="bi bi-award"></i>
+                            </div>
                         </div>
-                        <h5 class="card-title mb-2">Generate Report</h5>
-                        <p class="card-text mb-4 small" style="color: rgba(255,255,255,0.9);">Export comprehensive system report as PDF</p>
-                        <button class="btn btn-light" onclick="exportDashboardReport()">
-                            <i class="bi bi-download"></i> Generate PDF
-                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <p class="text-muted mb-1 small">Completion Rate</p>
+                                <h4 class="mb-0"><?= $completion_rate ?>%</h4>
+                                <small class="text-success"><i class="bi bi-arrow-up"></i> Overall progress</small>
+                            </div>
+                            <div class="text-info fs-4">
+                                <i class="bi bi-percent"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <p class="text-muted mb-1 small">Active Teachers</p>
+                                <h4 class="mb-0"><?= $total_teachers ?></h4>
+                                <small class="text-primary"><i class="bi bi-person-fill"></i> Teaching staff</small>
+                            </div>
+                            <div class="text-primary fs-4">
+                                <i class="bi bi-people-fill"></i>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
         
-        <!-- Charts Row -->
-        <div class="row g-4">
-            <!-- Bar Chart: Teacher Ratings -->
-            <div class="col-md-6">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-header bg-light">
-                        <h5 class="mb-0">Teacher Average Ratings</h5>
+        <!-- Quick Actions Section -->
+        <div class="row g-3 mt-3">
+            <div class="col-md-3">
+                <a href="questions.php" class="btn btn-primary w-100 py-2">
+                    <i class="bi bi-plus-circle me-2"></i>Manage Questions
+                </a>
+            </div>
+            <div class="col-md-3">
+                <a href="teachers.php" class="btn btn-info w-100 py-2">
+                    <i class="bi bi-people me-2"></i>Manage Teachers
+                </a>
+            </div>
+            <div class="col-md-3">
+                <a href="results.php" class="btn btn-success w-100 py-2">
+                    <i class="bi bi-file-earmark me-2"></i>View Results
+                </a>
+            </div>
+            <div class="col-md-3">
+                <a href="analytics.php" class="btn btn-warning w-100 py-2">
+                    <i class="bi bi-graph-up me-2"></i>Analytics
+                </a>
+            </div>
+        </div>
+        
+        <!-- Top Performing Teachers -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-light border-bottom">
+                        <h5 class="mb-0"><i class="bi bi-trophy"></i> Top Performing Teachers</h5>
                     </div>
-                    <div class="card-body" style="height: 350px; display: flex; align-items: center;">
-                        <?php if (count($teacher_ratings) > 0): ?>
-                            <canvas id="teacherRatingsChart"></canvas>
+                    <div class="card-body">
+                        <?php if (count($top_performers) > 0): ?>
+                            <div class="row g-3">
+                                <?php foreach ($top_performers as $index => $teacher): ?>
+                                    <div class="col-md-4">
+                                        <div class="card border-0" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(6, 182, 212, 0.1) 100%);">
+                                            <div class="card-body">
+                                                <div class="d-flex align-items-center mb-3">
+                                                    <div class="badge bg-primary rounded-circle" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 18px;">
+                                                        <?= '#' . ($index + 1) ?>
+                                                    </div>
+                                                    <div class="ms-3 flex-grow-1">
+                                                        <h6 class="mb-0"><?= htmlspecialchars($teacher['name'] ?? 'Anonymous') ?></h6>
+                                                    </div>
+                                                </div>
+                                                <div class="d-flex align-items-center">
+                                                    <div class="flex-grow-1">
+                                                        <small class="text-muted">Average Rating</small>
+                                                        <div class="h5 mb-0"><?= $teacher['avg_rating'] ?>/5</div>
+                                                    </div>
+                                                    <div class="text-center">
+                                                        <i class="bi bi-star-fill text-warning" style="font-size: 24px;"></i>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
                         <?php else: ?>
-                            <p class="text-muted text-center my-5 w-100">No data available yet</p>
+                            <div class="text-center py-4">
+                                <i class="bi bi-inbox" style="font-size: 48px; color: #cbd5e1;"></i>
+                                <p class="text-muted mt-2">No evaluation data available yet</p>
+                            </div>
                         <?php endif; ?>
                     </div>
                 </div>
             </div>
-            
+        </div>
+        
+        
+        <!-- Charts Row -->
+        <div class="row g-4">
             <!-- Pie Chart: Evaluation Distribution -->
             <div class="col-md-6">
                 <div class="card border-0 shadow-sm h-100">
@@ -475,7 +665,7 @@ try {
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">
-                            <table class="table table-hover mb-0">
+                            <table id="recentEvaluationsTable" class="table table-hover mb-0">
                                 <thead class="table-light">
                                     <tr>
                                         <th>Teacher</th>
@@ -491,7 +681,7 @@ try {
                                         if ($count >= 5) break;
                                         
                                         // Handle teacher_id - it might be a string or ObjectId
-                                        $teacher_name = 'Unknown';
+                                        $teacher_name = 'Anonymous';
                                         $teacher_id = $eval['teacher_id'] ?? null;
                                         
                                         if ($teacher_id) {
@@ -506,7 +696,8 @@ try {
                                             
                                             if ($teacher) {
                                                 $teacher_array = iterator_to_array($teacher);
-                                                $teacher_name = isset($teacher_array['name']) ? htmlspecialchars((string)$teacher_array['name'], ENT_QUOTES) : 'Unknown';
+                                                $full_name = trim(($teacher_array['first_name'] ?? '') . ' ' . ($teacher_array['middle_name'] ?? '') . ' ' . ($teacher_array['last_name'] ?? ''));
+                                                $teacher_name = !empty($full_name) ? htmlspecialchars($full_name, ENT_QUOTES) : 'Anonymous';
                                             }
                                         }
                                         
@@ -591,34 +782,138 @@ try {
             }
         }
     </script>
+    
     <script>
-        // Teacher Ratings Bar Chart
-        <?php if (count($teacher_ratings) > 0): ?>
-        const teacherCtx = document.getElementById('teacherRatingsChart').getContext('2d');
-        new Chart(teacherCtx, {
-            type: 'bar',
-            data: {
-                labels: <?= json_encode(array_column($teacher_ratings, 'name')) ?>,
-                datasets: [{
-                    label: 'Average Rating',
-                    data: <?= json_encode(array_column($teacher_ratings, 'avg_rating')) ?>,
-                    backgroundColor: '#00d4ff',
-                    borderColor: '#00d4ff',
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: { display: true, labels: { color: '#a0a9b8' } }
-                },
-                scales: {
-                    y: { beginAtZero: true, max: 5, ticks: { color: '#a0a9b8' }, grid: { color: '#0f3460' } },
-                    x: { ticks: { color: '#a0a9b8' }, grid: { color: '#0f3460' } }
-                }
+        // Polling for new evaluations with toast notifications
+        let lastEvalId = null;
+        let isFirstLoad = true;
+        
+        function showToastNotification(message) {
+            // Create light theme toast notification HTML
+            const toastHtml = `
+                <div class="toast-notification" style="
+                    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+                    color: #000000;
+                    padding: 16px 20px;
+                    border-radius: 12px;
+                    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(139, 92, 246, 0.1);
+                    min-width: 320px;
+                    font-weight: 500;
+                    animation: slideInToast 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+                    margin-top: 10px;
+                    border-left: 4px solid #8b5cf6;
+                    display: flex;
+                    align-items: flex-start;
+                    gap: 12px;
+                ">
+                    <div style="
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        width: 40px;
+                        height: 40px;
+                        background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(139, 92, 246, 0.05) 100%);
+                        border-radius: 50%;
+                        flex-shrink: 0;
+                        border: 2px solid #8b5cf6;
+                    ">
+                        <i class="bi bi-check-circle" style="font-size: 22px; color: #8b5cf6;"></i>
+                    </div>
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600; font-size: 14px; margin-bottom: 2px; color: #000000;">New Evaluation</div>
+                        <div style="font-weight: 400; font-size: 13px; opacity: 0.85; color: #1a1a1a;">${message}</div>
+                    </div>
+                </div>
+                <style>
+                    @keyframes slideInToast {
+                        from {
+                            transform: translateX(400px);
+                            opacity: 0;
+                        }
+                        to {
+                            transform: translateX(0);
+                            opacity: 1;
+                        }
+                    }
+                    
+                    @keyframes slideOutToast {
+                        from {
+                            transform: translateX(0);
+                            opacity: 1;
+                        }
+                        to {
+                            transform: translateX(400px);
+                            opacity: 0;
+                        }
+                    }
+                </style>
+            `;
+            
+            const container = document.getElementById('toast-container');
+            if (container) {
+                container.insertAdjacentHTML('beforeend', toastHtml);
+                
+                // Remove after 5 seconds
+                setTimeout(() => {
+                    const toast = container.querySelector('.toast-notification');
+                    if (toast) {
+                        toast.style.animation = 'slideOutToast 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards';
+                        setTimeout(() => toast.remove(), 400);
+                    }
+                }, 5000);
             }
-        });
-        <?php endif; ?>
+        }
+        
+        function checkNewEvaluations() {
+            const url = '/teacher-eval/admin/dashboard.php?check_new=1&lastId=' + (lastEvalId || '');
+            console.log('🔍 Poll check - URL:', url, 'isFirstLoad:', isFirstLoad, 'lastEvalId:', lastEvalId);
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    console.log('📡 Poll response:', data);
+                    
+                    if (data.latest_id) {
+                        console.log('✓ Latest ID exists:', data.latest_id);
+                        console.log('  has_new:', data.has_new, 'isFirstLoad:', isFirstLoad);
+                        
+                        if (!isFirstLoad && data.has_new) {
+                            // New evaluation detected!
+                            console.log('🎉 NEW EVALUATION DETECTED - SHOWING NOTIFICATION!');
+                            showToastNotification('📊 New evaluation submitted!');
+                            
+                            // Update notification badge if it exists
+                            const notifBadge = document.getElementById('notif-badge');
+                            if (notifBadge) {
+                                let currentCount = parseInt(notifBadge.textContent) || 0;
+                                notifBadge.textContent = currentCount + 1;
+                                notifBadge.style.display = 'inline-block';
+                            }
+                            
+                            // Reload after 5.5 seconds so user can see the toast fully (toast lasts 5 seconds)
+                            setTimeout(() => {
+                                console.log('🔄 Reloading page...');
+                                location.reload();
+                            }, 5500);
+                        } else if (isFirstLoad) {
+                            console.log('📌 First load - baseline set, ready for new evaluations');
+                            isFirstLoad = false;
+                        }
+                        lastEvalId = data.latest_id;
+                    } else {
+                        console.log('⚠ No latest ID found');
+                    }
+                })
+                .catch(error => console.log('❌ Poll check failed:', error.message));
+        }
+        
+        // Start polling when page loads
+        console.log('🚀 Starting evaluation polling...');
+        checkNewEvaluations(); // First check to set baseline
+        setInterval(checkNewEvaluations, 5000); // Check every 5 seconds (faster detection)
+    </script>
+    <script>
+        // [Removed: Teacher Ratings Chart - Optimized dashboard layout]
         
         // Evaluation Status Pie Chart
         const statusCtx = document.getElementById('evaluationStatusChart').getContext('2d');
@@ -638,6 +933,14 @@ try {
                 }
             }
         });
+        
+        // Initialize notification badge with recent evaluations count
+        const notifBadge = document.getElementById('notif-badge');
+        if (notifBadge && <?= $total_evaluations ?> > 0) {
+            // Show badge if there are evaluations
+            notifBadge.textContent = Math.min(<?= $total_evaluations ?>, 9) + (<?= $total_evaluations ?> > 9 ? '+' : '');
+            notifBadge.style.display = 'inline-block';
+        }
     </script>
     
     <!-- Footer -->

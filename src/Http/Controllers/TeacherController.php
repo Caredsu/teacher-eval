@@ -98,7 +98,9 @@ class TeacherController
                 return Response::validation($this->validator->errors());
             }
             
-            $teacher = $this->service->update($id, $data);
+            // Get current user ID/username from session
+            $userId = $_SESSION['admin_username'] ?? $_SESSION['admin_id'] ?? 'system';
+            $teacher = $this->service->update($id, $data, $userId);
             return Response::success($teacher);
         } catch (ValidationException $e) {
             return Response::validation(['error' => $e->getMessage()]);

@@ -246,12 +246,12 @@ if (!empty($evaluations)) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Evaluation Results - Teacher Evaluation System</title>
+    <title>Results - Teacher Evaluation System</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- DataTables CSS -->
     <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet">
     <link href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="/teacher-eval/assets/css/dark-theme.css">
+    <link rel="stylesheet" href="/teacher-eval/assets/css/dark-theme.css?v=2.0">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
     
@@ -278,27 +278,27 @@ if (!empty($evaluations)) {
             margin-left: 10px;
             padding: 8px 12px;
             border-radius: 6px;
-            border: 1.5px solid #555;
-            background: #2c3e50 !important;
-            color: #ffffff !important;
+            border: 1.5px solid #cbd5e1;
+            background: #ffffff !important;
+            color: #1e293b !important;
             font-size: 14px;
         }
         
         .dataTables_filter input::placeholder {
-            color: #999;
+            color: #000000;
         }
         
         .dataTables_length select {
             padding: 8px 12px;
             border-radius: 6px;
-            border: 1.5px solid #555;
-            background: #2c3e50 !important;
-            color: #ffffff !important;
+            border: 1.5px solid #cbd5e1;
+            background: #ffffff !important;
+            color: #1e293b !important;
             font-size: 14px;
         }
         
         .dataTables_info {
-            color: #e0e0e0;
+            color: #000000;
             font-size: 14px;
             padding-top: 10px;
         }
@@ -308,32 +308,32 @@ if (!empty($evaluations)) {
         }
         
         .page-link {
-            background-color: #2c3e50;
-            border-color: #555;
-            color: #667eea;
+            background-color: #f1f5f9;
+            border-color: #cbd5e1;
+            color: #8b5cf6;
         }
         
         .page-link:hover {
-            background-color: #434f63;
-            border-color: #667eea;
-            color: #764ba2;
+            background-color: #8b5cf6;
+            border-color: #8b5cf6;
+            color: #ffffff;
         }
         
         .page-item.active .page-link {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-color: #667eea;
+            background-color: #8b5cf6;
+            border-color: #8b5cf6;
         }
         
         .page-item.disabled .page-link {
-            background-color: #1a252f;
-            border-color: #555;
-            color: #666;
+            background-color: #f1f5f9;
+            border-color: #cbd5e1;
+            color: #000000;
         }
         
         #evaluationsTable thead th {
-            background: #1a252f;
-            color: #e0e0e0;
-            border-color: #3d5066;
+            background: #f1f5f9;
+            color: #000000;
+            border-color: #e2e8f0;
             font-weight: 600;
             padding: 10px 8px;
             font-size: 12px;
@@ -341,15 +341,15 @@ if (!empty($evaluations)) {
         }
         
         #evaluationsTable tbody tr {
-            border-bottom: 1px solid #3d5066;
+            border-bottom: 1px solid #e2e8f0;
         }
         
         #evaluationsTable tbody tr:hover {
-            background-color: #1a252f !important;
+            background-color: #f8fafc !important;
         }
         
         #evaluationsTable tbody td {
-            color: #ffffff;
+            color: #000000;
             padding: 10px 8px;
             vertical-align: middle;
             font-size: 12px;
@@ -363,18 +363,18 @@ if (!empty($evaluations)) {
         }
         
         .dataTables_filter label {
-            color: #e0e0e0;
+            color: #000000;
             font-weight: 500;
         }
         
         .dataTables_length label {
-            color: #e0e0e0;
+            color: #000000;
             font-weight: 500;
         }
         
         /* Column Filter Row Styling */
         #columnFilterRow {
-            background: #1a252f !important;
+            background: #f8fafc !important;
         }
         
         #columnFilterRow th {
@@ -388,12 +388,49 @@ if (!empty($evaluations)) {
         }
         
         .column-filter::placeholder {
-            color: #999 !important;
+            color: #000000 !important;
         }
         
         .column-filter:focus {
             outline: none;
-            background: #3b4a5c !important;
+            background: #ffffff !important;
+        }
+        
+        /* Remove bottom border/gradient bar */
+        .card {
+            border-bottom: none !important;
+            border-image: none !important;
+        }
+        
+        .dataTables_wrapper {
+            border-bottom: none !important;
+            border-image: none !important;
+        }
+        
+        /* Skeleton Loader Styles */
+        .skeleton-loader {
+            display: none !important;
+            position: fixed;
+            top: 70px;
+            left: 0;
+            right: 0;
+            width: 100%;
+            z-index: 999;
+            background: #f8fafc;
+        }
+        
+        .skeleton-loader.loading {
+            display: block !important;
+        }
+        
+        .skeleton-loader.loading ~ .content-loader {
+            display: none !important;
+        }
+        
+        .content-loader {
+            display: block !important;
+            opacity: 1;
+            transition: opacity 0.3s ease;
         }
     </style>
 </head>
@@ -401,8 +438,32 @@ if (!empty($evaluations)) {
     <!-- Navbar -->
     <?php include '../includes/navbar.php'; ?>
     
+    <!-- Skeleton Loader -->
+    <div class="skeleton-loader loading" data-show-skeleton="true">
+        <div class="container-fluid py-5">
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div style="height: 30px; background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%); background-size: 200% 100%; animation: skeleton-loading 1.5s infinite; border-radius: 4px; margin-bottom: 10px;"></div>
+                    <div style="height: 16px; width: 60%; background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%); background-size: 200% 100%; animation: skeleton-loading 1.5s infinite; border-radius: 4px;"></div>
+                </div>
+            </div>
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div style="height: 40px; background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%); background-size: 200% 100%; animation: skeleton-loading 1.5s infinite; border-radius: 4px; margin-bottom: 15px;"></div>
+                    <div style="height: 300px; background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%); background-size: 200% 100%; animation: skeleton-loading 1.5s infinite; border-radius: 4px;"></div>
+                </div>
+            </div>
+        </div>
+        <style>
+            @keyframes skeleton-loading {
+                0% { background-position: 200% 0; }
+                100% { background-position: -200% 0; }
+            }
+        </style>
+    </div>
+    
     <!-- Main Content Wrapper -->
-    <div class="main-content">
+    <div class="content-loader active">
         <div class="container-fluid py-5">
         <div class="row mb-4">
             <div class="col-md-6">
@@ -426,23 +487,23 @@ if (!empty($evaluations)) {
             <div class="col-12">
                 <div class="card border-0 shadow-sm">
                     <!-- Collapsible Filter Header -->
-                    <div class="card-header p-0" style="background: linear-gradient(135deg, #3b4a5c 0%, #2c3e50 100%); border-left: 4px solid #667eea;">
-                        <button class="btn w-100 text-start p-3" type="button" data-bs-toggle="collapse" data-bs-target="#filterPanel" style="color: #ffffff; font-weight: 600; font-size: 15px;">
-                            <i class="bi bi-funnel-fill" style="color: #667eea; margin-right: 8px;"></i>🔍 Advanced Filters
-                            <i class="bi bi-chevron-down float-end" id="filterToggle"></i>
+                    <div class="card-header p-0" style="background: linear-gradient(135deg, #f1f5f9 0%, #ffffff 100%); border-left: 4px solid #8b5cf6;">
+                        <button class="btn w-100 text-start p-3" type="button" data-bs-toggle="collapse" data-bs-target="#filterPanel" style="color: #1e293b; font-weight: 600; font-size: 15px;">
+                            <i class="bi bi-funnel-fill" style="color: #8b5cf6; margin-right: 8px;"></i>🔍 Advanced Filters
+                            <i class="bi bi-chevron-down float-end" id="filterToggle" style="transition: transform 0.3s ease;"></i>
                         </button>
                     </div>
                     
                     <!-- Collapsible Filter Panel -->
-                    <div class="collapse show" id="filterPanel">
-                        <div class="card-body" style="background: #2c3e50; border-bottom: 1px solid #3d5066;">
+                    <div class="collapse" id="filterPanel">
+                        <div class="card-body" style="background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
                             <form method="GET" class="row g-3" id="filterForm">
                                 <div class="col-lg-3 col-md-6 col-sm-12">
-                                    <label for="teacher_filter" class="form-label" style="font-weight: 500; color: #e0e0e0; font-size: 12px;">
-                                        <i class="bi bi-person-fill" style="color: #667eea;"></i> Teacher
+                                    <label for="teacher_filter" class="form-label" style="font-weight: 500; color: #000000; font-size: 12px;">
+                                        <i class="bi bi-person-fill" style="color: #8b5cf6;"></i> Teacher
                                     </label>
-                                    <select class="form-select form-select-sm" id="teacher_filter" name="teacher_id" style="border-radius: 6px; border: 1.5px solid #555; padding: 8px 10px; font-size: 13px; background: #2c3e50; color: #ffffff;">
-                                        <option value="" style="background: #2c3e50; color: #ffffff;">All Teachers</option>
+                                    <select class="form-select form-select-sm" id="teacher_filter" name="teacher_id" style="border-radius: 6px; border: 1.5px solid #cbd5e1; padding: 8px 10px; font-size: 13px; background: #ffffff; color: #1e293b;">
+                                        <option value="" style="background: #ffffff; color: #1e293b;">All Teachers</option>
                                         <?php
                                         foreach ($teachers_list as $teacher) {
                                             $teacher_id = objectIdToString($teacher['_id']);
@@ -452,68 +513,68 @@ if (!empty($evaluations)) {
                                                 $teacher['middle_name'] ?? '',
                                                 $teacher['last_name'] ?? ''
                                             );
-                                            echo '<option value="' . escapeOutput($teacher_id) . '" ' . $selected . ' style="background: #2c3e50; color: #ffffff;">' . escapeOutput($full_name) . '</option>';
+                                            echo '<option value="' . escapeOutput($teacher_id) . '" ' . $selected . ' style="background: #ffffff; color: #1e293b;">' . escapeOutput($full_name) . '</option>';
                                         }
                                         ?>
                                     </select>
                                 </div>
 
                                 <div class="col-lg-3 col-md-6 col-sm-12">
-                                    <label for="academic_year" class="form-label" style="font-weight: 500; color: #e0e0e0; font-size: 12px;">
-                                        <i class="bi bi-book" style="color: #667eea;"></i> Year
+                                    <label for="academic_year" class="form-label" style="font-weight: 500; color: #000000; font-size: 12px;">
+                                        <i class="bi bi-book" style="color: #8b5cf6;"></i> Year
                                     </label>
-                                    <select class="form-select form-select-sm" id="academic_year" name="academic_year" style="border-radius: 6px; border: 1.5px solid #555; padding: 8px 10px; font-size: 13px; background: #2c3e50; color: #ffffff;">
-                                        <option value="" style="background: #2c3e50; color: #ffffff;">All Years</option>
+                                    <select class="form-select form-select-sm" id="academic_year" name="academic_year" style="border-radius: 6px; border: 1.5px solid #cbd5e1; padding: 8px 10px; font-size: 13px; background: #ffffff; color: #1e293b;">
+                                        <option value="" style="background: #ffffff; color: #1e293b;">All Years</option>
                                         <?php
                                         foreach ($available_years as $year) {
                                             $selected = $year === $filter_academic_year ? 'selected' : '';
-                                            echo '<option value="' . escapeOutput($year) . '" ' . $selected . ' style="background: #2c3e50; color: #ffffff;">' . escapeOutput($year) . '</option>';
+                                            echo '<option value="' . escapeOutput($year) . '" ' . $selected . ' style="background: #ffffff; color: #1e293b;">' . escapeOutput($year) . '</option>';
                                         }
                                         ?>
                                     </select>
                                 </div>
 
                                 <div class="col-lg-3 col-md-6 col-sm-12">
-                                    <label for="semester" class="form-label" style="font-weight: 500; color: #e0e0e0; font-size: 12px;">
-                                        <i class="bi bi-calendar2-quarter" style="color: #27ae60;"></i> Semester
+                                    <label for="semester" class="form-label" style="font-weight: 500; color: #000000; font-size: 12px;">
+                                        <i class="bi bi-calendar2-quarter" style="color: #10b981;"></i> Semester
                                     </label>
-                                    <select class="form-select form-select-sm" id="semester" name="semester" style="border-radius: 6px; border: 1.5px solid #555; padding: 8px 10px; font-size: 13px; background: #2c3e50; color: #ffffff;">
-                                        <option value="" style="background: #2c3e50; color: #ffffff;">All</option>
-                                        <option value="1" <?= $filter_semester === '1' ? 'selected' : '' ?> style="background: #2c3e50; color: #ffffff;">1st (Jan-Jun)</option>
-                                        <option value="2" <?= $filter_semester === '2' ? 'selected' : '' ?> style="background: #2c3e50; color: #ffffff;">2nd (Jul-Dec)</option>
+                                    <select class="form-select form-select-sm" id="semester" name="semester" style="border-radius: 6px; border: 1.5px solid #cbd5e1; padding: 8px 10px; font-size: 13px; background: #ffffff; color: #1e293b;">
+                                        <option value="" style="background: #ffffff; color: #1e293b;">All</option>
+                                        <option value="1" <?= $filter_semester === '1' ? 'selected' : '' ?> style="background: #ffffff; color: #1e293b;">1st (Jan-Jun)</option>
+                                        <option value="2" <?= $filter_semester === '2' ? 'selected' : '' ?> style="background: #ffffff; color: #1e293b;">2nd (Jul-Dec)</option>
                                     </select>
                                 </div>
 
                                 <div class="col-lg-2 col-md-6 col-sm-12">
-                                    <label for="from_date" class="form-label" style="font-weight: 500; color: #e0e0e0; font-size: 12px;">
-                                        <i class="bi bi-calendar-event" style="color: #667eea;"></i> From
+                                    <label for="from_date" class="form-label" style="font-weight: 500; color: #000000; font-size: 12px;">
+                                        <i class="bi bi-calendar-event" style="color: #8b5cf6;"></i> From
                                     </label>
-                                    <input type="date" class="form-control form-control-sm" id="from_date" name="from_date" value="<?= escapeOutput($filter_from_date) ?>" style="border-radius: 6px; border: 1.5px solid #555; padding: 8px 10px; font-size: 13px; background: #2c3e50; color: #ffffff;">
+                                    <input type="date" class="form-control form-control-sm" id="from_date" name="from_date" value="<?= escapeOutput($filter_from_date) ?>" style="border-radius: 6px; border: 1.5px solid #cbd5e1; padding: 8px 10px; font-size: 13px; background: #ffffff; color: #1e293b;">
                                 </div>
 
                                 <div class="col-lg-2 col-md-6 col-sm-12">
-                                    <label for="to_date" class="form-label" style="font-weight: 500; color: #e0e0e0; font-size: 12px;">
-                                        <i class="bi bi-calendar-check" style="color: #667eea;"></i> To
+                                    <label for="to_date" class="form-label" style="font-weight: 500; color: #000000; font-size: 12px;">
+                                        <i class="bi bi-calendar-check" style="color: #8b5cf6;"></i> To
                                     </label>
-                                    <input type="date" class="form-control form-control-sm" id="to_date" name="to_date" value="<?= escapeOutput($filter_to_date) ?>" style="border-radius: 6px; border: 1.5px solid #555; padding: 8px 10px; font-size: 13px; background: #2c3e50; color: #ffffff;">
+                                    <input type="date" class="form-control form-control-sm" id="to_date" name="to_date" value="<?= escapeOutput($filter_to_date) ?>" style="border-radius: 6px; border: 1.5px solid #cbd5e1; padding: 8px 10px; font-size: 13px; background: #ffffff; color: #1e293b;">
                                 </div>
 
                                 <div class="col-lg-2 col-md-6 col-sm-12">
-                                    <label for="min_rating" class="form-label" style="font-weight: 500; color: #e0e0e0; font-size: 12px;">
+                                    <label for="min_rating" class="form-label" style="font-weight: 500; color: #000000; font-size: 12px;">
                                         <i class="bi bi-star-fill" style="color: #ffc107;"></i> Min Rating
                                     </label>
-                                    <select class="form-select form-select-sm" id="min_rating" name="min_rating" style="border-radius: 6px; border: 1.5px solid #555; padding: 8px 10px; font-size: 13px; background: #2c3e50; color: #ffffff;">
-                                        <option value="" style="background: #2c3e50; color: #ffffff;">All</option>
-                                        <option value="1" <?= $filter_min_rating === '1' ? 'selected' : '' ?> style="background: #2c3e50; color: #ffffff;">1+ ⭐</option>
-                                        <option value="2" <?= $filter_min_rating === '2' ? 'selected' : '' ?> style="background: #2c3e50; color: #ffffff;">2+ ⭐</option>
-                                        <option value="3" <?= $filter_min_rating === '3' ? 'selected' : '' ?> style="background: #2c3e50; color: #ffffff;">3+ ⭐</option>
-                                        <option value="4" <?= $filter_min_rating === '4' ? 'selected' : '' ?> style="background: #2c3e50; color: #ffffff;">4+ ⭐</option>
-                                        <option value="5" <?= $filter_min_rating === '5' ? 'selected' : '' ?> style="background: #2c3e50; color: #ffffff;">5 ⭐</option>
+                                    <select class="form-select form-select-sm" id="min_rating" name="min_rating" style="border-radius: 6px; border: 1.5px solid #cbd5e1; padding: 8px 10px; font-size: 13px; background: #ffffff; color: #1e293b;">
+                                        <option value="" style="background: #ffffff; color: #1e293b;">All</option>
+                                        <option value="1" <?= $filter_min_rating === '1' ? 'selected' : '' ?> style="background: #ffffff; color: #1e293b;">1+ ⭐</option>
+                                        <option value="2" <?= $filter_min_rating === '2' ? 'selected' : '' ?> style="background: #ffffff; color: #1e293b;">2+ ⭐</option>
+                                        <option value="3" <?= $filter_min_rating === '3' ? 'selected' : '' ?> style="background: #ffffff; color: #1e293b;">3+ ⭐</option>
+                                        <option value="4" <?= $filter_min_rating === '4' ? 'selected' : '' ?> style="background: #ffffff; color: #1e293b;">4+ ⭐</option>
+                                        <option value="5" <?= $filter_min_rating === '5' ? 'selected' : '' ?> style="background: #ffffff; color: #1e293b;">5 ⭐</option>
                                     </select>
                                 </div>
 
                                 <div class="col-12 pt-2">
-                                    <button type="submit" class="btn btn-sm" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 6px; font-weight: 500; padding: 8px 16px;">
+                                    <button type="submit" class="btn btn-sm" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); color: white; border: none; border-radius: 6px; font-weight: 500; padding: 8px 16px;">
                                         <i class="bi bi-search"></i> Apply Filters
                                     </button>
                                     <?php if ($filter_teacher_id || $filter_from_date || $filter_to_date || $filter_min_rating || $filter_academic_year || $filter_semester): ?>
@@ -551,7 +612,7 @@ if (!empty($evaluations)) {
                                 
                                 if (!empty($active_filters)): ?>
                                     <div class="col-12 pt-2" style="border-top: 1px solid #555;">
-                                        <small style="color: #e0e0e0; font-weight: 500;">Active: </small>
+                                        <small style="color: #000000; font-weight: 500;">Active: </small>
                                         <?= implode(' ', $active_filters) ?>
                                     </div>
                                 <?php endif; ?>
@@ -560,9 +621,9 @@ if (!empty($evaluations)) {
                     </div>
                     
                     <!-- DataTable Section -->
-                    <div class="card-body" style="padding: 0; overflow-x: auto;">
-                        <div class="table-responsive" style="margin: 0;">
-                            <table id="evaluationsTable" class="table table-hover table-striped mb-0 w-100" style="margin: 0;">
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table id="evaluationsTable" class="table table-hover table-striped mb-0 w-100">
                                 <thead class="table-light">
                                     <tr>
                                         <th>Teacher</th>
@@ -613,13 +674,13 @@ if (!empty($evaluations)) {
                                         
                                         echo '
                                         <tr>
-                                            <td class="fw-500"><i class="bi bi-person-fill me-2" style="color: #667eea;"></i>' . escapeOutput($teacher_name) . '</td>
+                                            <td class="fw-500"><i class="bi bi-person-fill me-2" style="color: #8b5cf6;"></i>' . escapeOutput($teacher_name) . '</td>
                                             <td><small class="text-muted">' . escapeOutput($submitted_date) . '</small></td>
                                             <td><span class="badge bg-info text-dark">' . escapeOutput($academic_year) . '</span></td>
                                             <td><span class="badge bg-secondary">' . escapeOutput($semester) . '</span></td>
                                             <td>
                                                 <div style="display: flex; flex-direction: column; gap: 4px;">
-                                                    <div class="rating-badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 4px 10px; border-radius: 12px; display: inline-block; font-weight: bold; font-size: 13px;">⭐ ' . $avg_rating . '/5</div>
+                                                    <div class="rating-badge" style="background: linear-gradient(135deg, #8b5cf6 0%, #06b6d4 100%); color: white; padding: 4px 10px; border-radius: 12px; display: inline-block; font-weight: bold; font-size: 13px;">⭐ ' . $avg_rating . '/5</div>
                                                     <span class="badge" style="background: ' . $qualitative['color'] . '; color: white; display: inline-block; padding: 4px 8px; border-radius: 12px; font-size: 12px;">' . escapeOutput($qualitative['rating']) . '</span>
                                                 </div>
                                             </td>
@@ -649,8 +710,8 @@ if (!empty($evaluations)) {
         <?php if (!empty($question_stats)): ?>
         <div class="row mt-5">
             <div class="col-12">
-                <h3 class="mb-4" style="color: #e0e0e0;">
-                    <i class="bi bi-graph-up" style="color: #667eea;"></i> Question Analysis
+                <h3 class="mb-4" style="color: #000000;">
+                    <i class="bi bi-graph-up" style="color: #8b5cf6;"></i> Question Analysis
                 </h3>
             </div>
             <?php
@@ -658,14 +719,14 @@ if (!empty($evaluations)) {
                 $question_text = isset($questions_map[$q_id]) ? $questions_map[$q_id] : 'Unknown Question';
                 ?>
                 <div class="col-md-6 mb-4">
-                    <div class="card border-0 shadow-sm" style="background: #2c3e50; border: 1px solid #3d5066;">
-                        <div class="card-header" style="background: #1a252f; border-bottom: 1px solid #3d5066;">
+                    <div class="card border-0 shadow-sm" style="background: #ffffff; border: 1px solid #e2e8f0;">
+                        <div class="card-header" style="background: #f1f5f9; border-bottom: 1px solid #e2e8f0;">
                             <div class="row">
                                 <div class="col-md-8">
-                                    <h6 class="mb-0" style="color: #e0e0e0;"><?= escapeOutput($question_text) ?></h6>
+                                    <h6 class="mb-0" style="color: #000000;"><?= escapeOutput($question_text) ?></h6>
                                 </div>
                                 <div class="col-md-4 text-end">
-                                    <span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">Avg: <?= $stats['avg'] ?>/5</span>
+                                    <span class="badge" style="background: linear-gradient(135deg, #8b5cf6 0%, #06b6d4 100%); color: white;">Avg: <?= $stats['avg'] ?>/5</span>
                                 </div>
                             </div>
                         </div>
@@ -718,11 +779,11 @@ if (!empty($evaluations)) {
                     plugins: {
                         legend: { display: false },
                         tooltip: {
-                            backgroundColor: '#1a252f',
+                            backgroundColor: '#ffffff',
                             borderColor: '#667eea',
                             borderWidth: 1,
-                            titleColor: '#e0e0e0',
-                            bodyColor: '#e0e0e0'
+                            titleColor: '#000000',
+                            bodyColor: '#000000'
                         }
                     },
                     scales: {
@@ -845,8 +906,8 @@ if (!empty($evaluations)) {
                                         font-size: 12px;
                                     }
                                     th {
-                                        background: #2c3e50;
-                                        color: white;
+                                        background: #f1f5f9;
+                                        color: #000000;
                                         padding: 12px;
                                         text-align: left;
                                         font-weight: 600;
@@ -933,7 +994,7 @@ if (!empty($evaluations)) {
                                 </div>
                                 
                                 <div class="no-print" style="text-align: center; margin-top: 20px; padding: 20px; border-top: 1px solid #ddd;">
-                                    <button onclick="window.print()" style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">Print</button>
+                                    <button onclick="window.print()" style="padding: 10px 20px; background: #8b5cf6; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">Print</button>
                                     <button onclick="window.close()" style="padding: 10px 20px; background: #ccc; color: #333; border: none; border-radius: 4px; cursor: pointer; margin-left: 10px; font-size: 14px;">Close</button>
                                 </div>
                             </body>
@@ -998,23 +1059,23 @@ if (!empty($evaluations)) {
         // Display evaluation details in modal
         function displayEvalDetails(data) {
             let html = '<div class="evaluation-details">';
-            html += '<div class="mb-3" style="color: #ffffff;"><strong style="color: #e0e0e0;">Teacher:</strong> ' + escapeHtml(data.teacher_name) + '</div>';
-            html += '<div class="mb-3" style="color: #ffffff;"><strong style="color: #e0e0e0;">Submitted:</strong> ' + escapeHtml(data.submitted_at) + '</div>';
-            html += '<div class="mb-3" style="color: #ffffff;"><strong style="color: #e0e0e0;">Overall Rating:</strong> <span class="badge" style="background: ' + data.qualitative_color + '; color: white; padding: 6px 12px; font-size: 13px;">⭐ ' + data.avg_rating + '/5 - ' + escapeHtml(data.qualitative) + '</span></div>';
-            html += '<div class="mb-3" style="color: #b0b0b0; font-size: 13px;"><em>' + escapeHtml(data.qualitative_description) + '</em></div>';
-            html += '<hr style="border-color: #555;">';
-            html += '<h6 style="color: #e0e0e0;">Ratings by Question:</h6>';
+            html += '<div class="mb-3" style="color: #000000;"><strong style="color: #000000;">Teacher:</strong> ' + escapeHtml(data.teacher_name) + '</div>';
+            html += '<div class="mb-3" style="color: #000000;"><strong style="color: #000000;">Submitted:</strong> ' + escapeHtml(data.submitted_at) + '</div>';
+            html += '<div class="mb-3" style="color: #000000;"><strong style="color: #000000;">Overall Rating:</strong> <span class="badge" style="background: ' + data.qualitative_color + '; color: white; padding: 6px 12px; font-size: 13px;">⭐ ' + data.avg_rating + '/5 - ' + escapeHtml(data.qualitative) + '</span></div>';
+            html += '<div class="mb-3" style="color: #666; font-size: 13px;"><em>' + escapeHtml(data.qualitative_description) + '</em></div>';
+            html += '<hr style="border-color: #e2e8f0;">';
+            html += '<h6 style="color: #000000;">Ratings by Question:</h6>';
             html += '<div class="table-responsive">';
-            html += '<table class="table table-sm" style="color: #ffffff;">';
-            html += '<thead style="background: #2c3e50; color: #e0e0e0;"><tr><th>Question</th><th>Rating</th></tr></thead>';
+            html += '<table class="table table-sm" style="color: #000000;">';
+            html += '<thead style="background: #f1f5f9; color: #000000; border-bottom: 2px solid #e2e8f0;"><tr><th>Question</th><th>Rating</th></tr></thead>';
             html += '<tbody>';
             
             if (data.answers && data.answers.length > 0) {
                 data.answers.forEach((answer, index) => {
-                    const rowBg = index % 2 === 0 ? '#1a252f' : '#0f1419';
-                    html += '<tr style="background: ' + rowBg + '; color: #ffffff;">';
-                    html += '<td style="color: #ffffff;">' + escapeHtml(answer.question) + '</td>';
-                    html += '<td><span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">' + answer.rating + '/5</span></td>';
+                    const rowBg = index % 2 === 0 ? '#f8fafc' : '#ffffff';
+                    html += '<tr style="background: ' + rowBg + '; color: #000000;">';
+                    html += '<td style="color: #000000;">' + escapeHtml(answer.question) + '</td>';
+                    html += '<td><span class="badge" style="background: linear-gradient(135deg, #8b5cf6 0%, #06b6d4 100%); color: white;">' + answer.rating + '/5</span></td>';
                     html += '</tr>';
                 });
             } else {
@@ -1022,9 +1083,9 @@ if (!empty($evaluations)) {
             }
             
             html += '</tbody></table></div>';
-            html += '<hr style="border-color: #555;">';
-            html += '<h6 style="color: #e0e0e0;">Qualitative Feedback:</h6>';
-            html += '<div style="background: #1a252f; color: #ffffff; padding: 15px; border-radius: 6px; border-left: 3px solid #667eea; min-height: 80px; word-wrap: break-word;">' + escapeHtml(data.feedback) + '</div>';
+            html += '<hr style="border-color: #e2e8f0;">';
+            html += '<h6 style="color: #000000;">Qualitative Feedback:</h6>';
+            html += '<div style="background: #f8fafc; color: #000000; padding: 15px; border-radius: 6px; border-left: 3px solid #8b5cf6; min-height: 80px; word-wrap: break-word;">' + escapeHtml(data.feedback) + '</div>';
             html += '</div>';
             
             const container = document.getElementById('evalDetailsContent');
@@ -1044,13 +1105,13 @@ if (!empty($evaluations)) {
     <!-- Evaluation Details Modal -->
     <div class="modal fade" id="evalDetailsModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
-            <div class="modal-content" style="background: #2c3e50; color: #ffffff; border: none;">
-                <div class="modal-header" style="background: #1a252f; border-bottom: 1px solid #555;">
-                    <h5 class="modal-title" style="color: #ffffff;">Evaluation Details</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            <div class="modal-content" style="background: #ffffff; color: #000000; border: none;">
+                <div class="modal-header" style="background: #f1f5f9; border-bottom: 1px solid #e2e8f0;">
+                    <h5 class="modal-title" style="color: #000000;">Evaluation Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body" style="background: #2c3e50;">
-                    <div id="evalDetailsContent" class="spinner-border text-light" role="status">
+                <div class="modal-body" style="background: #ffffff;">
+                    <div id="evalDetailsContent" class="spinner-border text-dark" role="status">
                         <span class="visually-hidden">Loading...</span>
                     </div>
                 </div>
@@ -1070,6 +1131,26 @@ if (!empty($evaluations)) {
     <!-- DataTables Initialization & Enhanced Features -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Hide skeleton loader
+            const skeletonLoader = document.querySelector('.skeleton-loader');
+            if (skeletonLoader) {
+                setTimeout(function() {
+                    skeletonLoader.classList.remove('loading');
+                }, 300);
+            }
+            
+            // Chevron rotation animation for filter collapse
+            const filterPanel = document.getElementById('filterPanel');
+            const filterToggle = document.getElementById('filterToggle');
+            
+            filterPanel.addEventListener('show.bs.collapse', function() {
+                filterToggle.style.transform = 'rotate(180deg)';
+            });
+            
+            filterPanel.addEventListener('hide.bs.collapse', function() {
+                filterToggle.style.transform = 'rotate(0deg)';
+            });
+            
             // Initialize DataTable
             const table = new DataTable('#evaluationsTable', {
                 responsive: true,

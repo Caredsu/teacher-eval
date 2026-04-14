@@ -9,7 +9,7 @@ require_once '../config/database.php';
 
 initializeSession();
 requireLogin();
-requireRole('admin');
+requirePermission('manage_questions');
 ?>
 
 <!DOCTYPE html>
@@ -17,9 +17,9 @@ requireRole('admin');
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Questions Management - Teacher Evaluation System</title>
+    <title>Questions - Teacher Evaluation System</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="/teacher-eval/assets/css/dark-theme.css">
+    <link rel="stylesheet" href="/teacher-eval/assets/css/dark-theme.css?v=2.0">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
@@ -90,14 +90,125 @@ requireRole('admin');
             transition: none !important;
             animation-play-state: paused !important;
         }
+
+        /* Icon-only button styles */
+        .btn-icon {
+            width: 36px;
+            height: 36px;
+            padding: 0 !important;
+            border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 1.5px solid #667eea;
+            background: transparent !important;
+            color: #667eea;
+            font-size: 16px;
+            transition: all 0.2s ease;
+            margin: 0 4px;
+        }
+
+        .btn-icon:hover {
+            background: #667eea !important;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-icon.deleteBtn {
+            border-color: #dc3545;
+            color: #dc3545;
+        }
+
+        .btn-icon.deleteBtn:hover {
+            background: #dc3545 !important;
+            color: white;
+            box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+        }
+
+        body.dark-mode .btn-icon {
+            border-color: #8b9eff;
+            color: #8b9eff;
+        }
+
+        body.dark-mode .btn-icon:hover {
+            background: #667eea !important;
+            color: white;
+        }
+
+        body.dark-mode .btn-icon.deleteBtn {
+            border-color: #ff6b6b;
+            color: #ff6b6b;
+        }
+
+        body.dark-mode .btn-icon.deleteBtn:hover {
+            background: #dc3545 !important;
+            color: white;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 4px;
+            justify-content: center;
+        }
+        
+        /* Skeleton Loader Styles */
+        .skeleton-loader {
+            display: none !important;
+            position: fixed;
+            top: 70px;
+            left: 0;
+            right: 0;
+            width: 100%;
+            z-index: 999;
+            background: #f8fafc;
+        }
+        
+        .skeleton-loader.loading {
+            display: block !important;
+        }
+        
+        .skeleton-loader.loading ~ .content-loader {
+            display: none !important;
+        }
+        
+        .content-loader {
+            display: block !important;
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
     </style>
 </head>
 <body>
     <!-- Navbar -->
     <?php include '../includes/navbar.php'; ?>
     
+    <!-- Skeleton Loader -->
+    <div class="skeleton-loader loading" data-show-skeleton="true">
+        <div class="container-fluid py-5">
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div style="height: 30px; background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%); background-size: 200% 100%; animation: skeleton-loading 1.5s infinite; border-radius: 4px; margin-bottom: 10px;"></div>
+                    <div style="height: 16px; width: 60%; background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%); background-size: 200% 100%; animation: skeleton-loading 1.5s infinite; border-radius: 4px;"></div>
+                </div>
+            </div>
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div style="height: 40px; background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%); background-size: 200% 100%; animation: skeleton-loading 1.5s infinite; border-radius: 4px; margin-bottom: 15px;"></div>
+                    <div style="height: 300px; background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%); background-size: 200% 100%; animation: skeleton-loading 1.5s infinite; border-radius: 4px;"></div>
+                </div>
+            </div>
+        </div>
+        <style>
+            @keyframes skeleton-loading {
+                0% { background-position: 200% 0; }
+                100% { background-position: -200% 0; }
+            }
+        </style>
+    </div>
+    
     <!-- Main Content Wrapper -->
-    <div class="main-content">
+    <div class="content-loader active">
         <div class="container-fluid py-5">
             <div class="row mb-4">
                 <div class="col-md-6">
@@ -125,8 +236,6 @@ requireRole('admin');
                             <thead class="table-light">
                                 <tr>
                                     <th>Question</th>
-                                    <th>Category</th>
-                                    <th>Type</th>
                                     <th>Order</th>
                                     <th>Required</th>
                                     <th>Status</th>
@@ -164,44 +273,18 @@ requireRole('admin');
                             ></textarea>
                         </div>
 
-                        <!-- Category -->
+                        <!-- Display Order -->
                         <div class="mb-3">
-                            <label for="category" class="form-label">Category *</label>
-                            <select class="form-select" id="category" name="category" required>
-                                <option value="">-- Select Category --</option>
-                                <option value="pedagogy">Pedagogy</option>
-                                <option value="professionalism">Professionalism</option>
-                                <option value="communication">Communication</option>
-                                <option value="classroom_management">Classroom Management</option>
-                                <option value="student_engagement">Student Engagement</option>
-                            </select>
-                        </div>
-
-                        <div class="row">
-                            <!-- Type -->
-                            <div class="col-md-6 mb-3">
-                                <label for="type" class="form-label">Question Type *</label>
-                                <select class="form-select" id="type" name="type" required>
-                                    <option value="">-- Select Type --</option>
-                                    <option value="rating">Rating Scale</option>
-                                    <option value="text">Text</option>
-                                    <option value="multiple_choice">Multiple Choice</option>
-                                </select>
-                            </div>
-
-                            <!-- Display Order -->
-                            <div class="col-md-6 mb-3">
-                                <label for="display_order" class="form-label">Display Order (Auto)</label>
-                                <input 
-                                    type="number" 
-                                    class="form-control" 
-                                    id="display_order" 
-                                    name="display_order"
-                                    min="1"
-                                    readonly
-                                >
-                                <small class="text-muted d-block mt-1">Automatically assigned based on question count</small>
-                            </div>
+                            <label for="display_order" class="form-label">Display Order (Auto)</label>
+                            <input 
+                                type="number" 
+                                class="form-control" 
+                                id="display_order" 
+                                name="display_order"
+                                min="1"
+                                readonly
+                            >
+                            <small class="text-muted d-block mt-1">Automatically assigned based on question count</small>
                         </div>
 
                         <!-- Required Checkbox -->
@@ -249,12 +332,23 @@ requireRole('admin');
     <script src="/teacher-eval/assets/js/api-service.js"></script>
     <script src="/teacher-eval/assets/js/export-pdf.js"></script>
     
+    <!-- Expose user role to JavaScript -->
+    <script>
+        const currentUserRole = '<?php echo getUserRole(); ?>';
+    </script>
+
     <script>
         // Questions Management - Uses APIService for all operations
         const questionModal = new bootstrap.Modal(document.getElementById('questionModal'), {});
         let questionsTable = null;
         
         document.addEventListener('DOMContentLoaded', () => {
+            const skeletonLoader = document.querySelector('.skeleton-loader');
+            if (skeletonLoader) {
+                setTimeout(function() {
+                    skeletonLoader.classList.remove('loading');
+                }, 300);
+            }
             initializeQuestionsTable();
             bindFormEvents();
         });
@@ -265,19 +359,6 @@ requireRole('admin');
                 serverSide: false,
                 columns: [
                     { data: 'question_text', title: 'Question' },
-                    { data: 'category', title: 'Category' },
-                    { 
-                        data: 'type',
-                        title: 'Type',
-                        render: function(data) {
-                            const typeLabel = {
-                                'rating': 'Rating Scale',
-                                'text': 'Text',
-                                'multiple_choice': 'Multiple Choice'
-                            };
-                            return typeLabel[data] || data;
-                        }
-                    },
                     { data: 'display_order', title: 'Order' },
                     {
                         data: 'required',
@@ -299,20 +380,25 @@ requireRole('admin');
                         title: 'Actions',
                         orderable: false,
                         render: function(data, type, row) {
-                            return `
-                                <div class="btn-group" role="group">
-                                    <button class="btn btn-sm btn-outline-primary editBtn" data-question-id="${data}">
-                                        <i class="bi bi-pencil"></i> Edit
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-danger deleteBtn" data-question-id="${data}">
-                                        <i class="bi bi-trash"></i> Delete
-                                    </button>
-                                </div>
-                            `;
+                            let actions = `
+                                <div class="action-buttons">
+                                    <button class="btn btn-icon editBtn" data-question-id="${data}" data-bs-toggle="tooltip" data-bs-title="Edit">
+                                        <i class="bi bi-pencil-fill"></i>
+                                    </button>`;
+                            
+                            // Only show delete button for admin
+                            if (currentUserRole === 'admin') {
+                                actions += `<button class="btn btn-icon deleteBtn" data-question-id="${data}" data-bs-toggle="tooltip" data-bs-title="Delete">
+                                        <i class="bi bi-trash-fill"></i>
+                                    </button>`;
+                            }
+                            
+                            actions += `</div>`;
+                            return actions;
                         }
                     }
                 ],
-                order: [[3, 'asc']],
+                order: [[1, 'asc']],
                 pageLength: 10,
                 language: {
                     emptyTable: "No questions found"
@@ -337,6 +423,7 @@ requireRole('admin');
                         
                         questionsTable.clear().rows.add(data).draw();
                         attachRowEventHandlers();
+                        initializeTooltips();
                     } else {
                         showError(response.message || 'Failed to load questions');
                     }
@@ -361,6 +448,21 @@ requireRole('admin');
             });
         }
         
+        function initializeTooltips() {
+            // Destroy existing tooltips
+            document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(tooltipTriggerEl => {
+                const existingTooltip = bootstrap.Tooltip.getInstance(tooltipTriggerEl);
+                if (existingTooltip) {
+                    existingTooltip.dispose();
+                }
+            });
+            
+            // Initialize new tooltips
+            document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(tooltipTriggerEl => {
+                new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+        }
+        
         function openQuestionModal() {
             document.getElementById('questionForm').reset();
             document.getElementById('modalTitle').textContent = 'Add New Question';
@@ -380,8 +482,6 @@ requireRole('admin');
                     if (response.success && response.data) {
                         const question = response.data;
                         document.getElementById('question_text').value = question.question_text || '';
-                        document.getElementById('category').value = question.category || '';
-                        document.getElementById('type').value = question.type || '';
                         document.getElementById('display_order').value = question.display_order || '';
                         document.getElementById('required').checked = question.required || false;
                         document.getElementById('status').value = question.status || 'active';
@@ -430,8 +530,6 @@ requireRole('admin');
                 const questionId = this.dataset.questionId;
                 const isEditing = !!questionId;
                 const questionText = document.getElementById('question_text').value.trim();
-                const category = document.getElementById('category').value;
-                const type = document.getElementById('type').value;
                 const displayOrder = parseInt(document.getElementById('display_order').value);
                 const required = document.getElementById('required').checked;
                 const status = document.getElementById('status').value;
@@ -442,8 +540,6 @@ requireRole('admin');
                 
                 const data = {
                     question_text: questionText,
-                    category: category,
-                    type: type,
                     display_order: displayOrder,
                     required: required,
                     status: status

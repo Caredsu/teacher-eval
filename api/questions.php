@@ -37,6 +37,8 @@ if ($action !== 'get_questions' && $action !== 'get_question') {
 try {
     switch ($action) {
         case 'add_question':
+            requirePermission('manage_questions');
+            
             if (!verifyCSRFToken(getPOST('csrf_token'))) {
                 jsonResponse(false, 'CSRF token invalid');
             }
@@ -72,6 +74,8 @@ try {
             break;
             
         case 'update_question':
+            requirePermission('manage_questions');
+            
             if (!verifyCSRFToken(getPOST('csrf_token'))) {
                 jsonResponse(false, 'CSRF token invalid');
             }
@@ -111,6 +115,8 @@ try {
             break;
             
         case 'delete_question':
+            requirePermission('manage_questions');
+            
             if (!verifyCSRFToken(getPOST('csrf_token'))) {
                 jsonResponse(false, 'CSRF token invalid');
             }
@@ -131,6 +137,8 @@ try {
             break;
             
         case 'toggle_status':
+            requirePermission('manage_questions');
+            
             if (!verifyCSRFToken(getPOST('csrf_token'))) {
                 jsonResponse(false, 'CSRF token invalid');
             }

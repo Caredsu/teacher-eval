@@ -53,16 +53,11 @@ class QuestionService
             throw new ValidationException('Question text is required');
         }
         
-        if (empty($data['type']) || !in_array($data['type'], ['rating', 'text', 'multiple_choice'])) {
-            throw new ValidationException('Invalid question type');
-        }
-        
         $questionData = [
             'question_text' => $data['question_text'],
-            'type' => $data['type'],
-            'category' => $data['category'] ?? '',
+            'type' => 'rating',  // Always rating scale
             'display_order' => $data['display_order'] ?? 0,
-            'required' => $data['required'] ?? true,
+            'required' => isset($data['required']) ? (bool)$data['required'] : false,
             'status' => $data['status'] ?? 'active',
             'created_at' => new UTCDateTime(),
             'updated_at' => new UTCDateTime()
@@ -91,17 +86,6 @@ class QuestionService
         
         if (isset($data['question_text'])) {
             $updateData['question_text'] = $data['question_text'];
-        }
-        
-        if (isset($data['type'])) {
-            if (!in_array($data['type'], ['rating', 'text', 'multiple_choice'])) {
-                throw new ValidationException('Invalid question type');
-            }
-            $updateData['type'] = $data['type'];
-        }
-        
-        if (isset($data['category'])) {
-            $updateData['category'] = $data['category'];
         }
         
         if (isset($data['display_order'])) {

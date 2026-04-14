@@ -619,3 +619,13 @@ function getQualitativeAssessment($rating) {
     }
 }
 
+/**
+ * Build admin path
+ * @param string $file Filename to build path for
+ * @return string Full admin path
+ */
+function adminPath($file = '') {
+    $base = '/teacher-eval/admin/';
+    return $base . $file;
+}
+

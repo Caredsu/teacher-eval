@@ -33,7 +33,7 @@ while (ob_get_level()) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Users Management - Teacher Evaluation System</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="/teacher-eval/assets/css/dark-theme.css">
+    <link rel="stylesheet" href="/teacher-eval/assets/css/dark-theme.css?v=2.0">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
@@ -62,48 +62,59 @@ while (ob_get_level()) {
             color: #721c24;
         }
 
-        body.dark-mode .status-active {
-            background: #1b5e20;
-            color: #51cf66;
-        }
-
-        body.dark-mode .status-inactive {
-            background: #5a1818;
-            color: #ff6b6b;
-        }
-
         .role-admin {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #8b5cf6 0%, #06b6d4 100%);
             color: white;
         }
 
         .role-staff {
-            background-color: #0d6efd;
+            background-color: #06b6d4;
             color: white;
         }
 
         .modal-header {
-            border-bottom: 2px solid #667eea;
+            border-bottom: 2px solid #8b5cf6;
         }
 
-        body.dark-mode .modal-header {
-            background: #2d2d2d;
+        /* Button icon styling */
+        .btn-icon {
+            width: 36px;
+            height: 36px;
+            padding: 0 !important;
+            border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 1.5px solid #8b5cf6;
+            background: transparent !important;
+            color: #8b5cf6;
+            font-size: 16px;
+            transition: all 0.2s ease;
+            margin: 0 4px;
         }
 
-        body.dark-mode .modal-body {
-            background: #2d2d2d;
+        .btn-icon:hover {
+            background: #8b5cf6 !important;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
         }
 
-        body.dark-mode .form-control,
-        body.dark-mode .form-select {
-            background-color: #1a1a1a;
-            color: #e0e0e0;
-            border-color: #444;
+        .btn-icon.deleteBtn {
+            border-color: #ef4444;
+            color: #ef4444;
         }
 
-        body.dark-mode .form-control:focus,
-        body.dark-mode .form-select:focus {
-            border-color: #667eea;
+        .btn-icon.deleteBtn:hover {
+            background: #ef4444 !important;
+            color: white;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 4px;
+            justify-content: center;
         }
 
         /* Disable animations on table hover */
@@ -346,12 +357,12 @@ while (ob_get_level()) {
                         orderable: false,
                         render: function(data, type, row) {
                             return `
-                                <div class="btn-group" role="group">
-                                    <button class="btn btn-sm btn-outline-primary editBtn" data-user-id="${data}">
-                                        <i class="bi bi-pencil"></i> Edit
+                                <div class="action-buttons">
+                                    <button class="btn btn-icon editBtn" data-user-id="${data}" data-bs-toggle="tooltip" data-bs-title="Edit">
+                                        <i class="bi bi-pencil-fill"></i>
                                     </button>
-                                    <button class="btn btn-sm btn-outline-danger deleteBtn" data-user-id="${data}">
-                                        <i class="bi bi-trash"></i> Delete
+                                    <button class="btn btn-icon deleteBtn" data-user-id="${data}" data-bs-toggle="tooltip" data-bs-title="Delete">
+                                        <i class="bi bi-trash-fill"></i>
                                     </button>
                                 </div>
                             `;
@@ -404,6 +415,23 @@ while (ob_get_level()) {
             $('#usersTable tbody').on('click', '.deleteBtn', function() {
                 const userId = $(this).data('user-id');
                 deleteUser(userId);
+            });
+            
+            initializeTooltips();
+        }
+        
+        function initializeTooltips() {
+            // Destroy existing tooltips
+            document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(tooltipTriggerEl => {
+                const existingTooltip = bootstrap.Tooltip.getInstance(tooltipTriggerEl);
+                if (existingTooltip) {
+                    existingTooltip.dispose();
+                }
+            });
+            
+            // Initialize new tooltips
+            document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(tooltipTriggerEl => {
+                new bootstrap.Tooltip(tooltipTriggerEl);
             });
         }
         

@@ -101,76 +101,76 @@ $evaluation_status = $eval_settings['status'] ?? 'on';
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Settings - Teacher Evaluation System</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="/teacher-eval/assets/css/dark-theme.css">
+    <link rel="stylesheet" href="/teacher-eval/assets/css/dark-theme.css?v=2.0">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <style>
-        /* Dark theme sidebar styling */
-        /* Sidebar dark theme (always applied) */
+        /* Light theme sidebar styling */
+        /* Sidebar light theme (always applied) */
         .list-group {
-            background-color: #2d3748;
-            border-color: #4a5568;
+            background-color: #ffffff;
+            border-color: #e2e8f0;
         }
         
         .list-group-item {
-            background-color: #2d3748;
-            border-color: #4a5568;
-            color: #e0e0e0;
+            background-color: #f8fafc;
+            border-color: #e2e8f0;
+            color: #000000;
             border-radius: 6px;
             margin-bottom: 6px;
             transition: all 0.2s ease;
         }
         
         .list-group-item:hover {
-            background-color: #3a4556;
-            color: #667eea;
+            background-color: #f1f5f9;
+            color: #8b5cf6;
         }
         
         .list-group-item.active {
-            background-color: #667eea;
-            border-color: #667eea;
+            background-color: #8b5cf6;
+            border-color: #8b5cf6;
             color: white;
         }
         
-        /* Card dark theme (always applied) */
+        /* Card light theme (always applied) */
         .card {
-            background-color: #2d3748;
-            border-color: #4a5568;
-            color: #e0e0e0;
+            background-color: #ffffff;
+            border-color: #e2e8f0;
+            color: #000000;
         }
         
         .card-header {
-            background-color: #3a4556 !important;
-            border-color: #4a5568;
-            color: #e0e0e0;
+            background-color: #f1f5f9 !important;
+            border-color: #e2e8f0;
+            color: #000000;
         }
         
         .card-body {
-            background-color: #2d3748;
-            color: #e0e0e0;
+            background-color: #ffffff;
+            color: #000000;
         }
         
-        /* Form inputs dark theme (always applied) */
+        /* Form inputs light theme (always applied) */
         .form-control,
         .form-select {
-            background-color: #1a202c;
-            border-color: #4a5568;
-            color: #e0e0e0;
+            background-color: #ffffff;
+            border-color: #cbd5e1;
+            color: #000000;
         }
         
         .form-control:focus,
         .form-select:focus {
-            background-color: #1a202c;
-            color: #e0e0e0;
-            border-color: #667eea;
-            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+            background-color: #ffffff;
+            color: #000000;
+            border-color: #8b5cf6;
+            box-shadow: 0 0 0 0.2rem rgba(139, 92, 246, 0.25);
         }
         
         .form-label {
-            color: #e0e0e0;
+            color: #000000;
         }
         
         .form-check-label {
-            color: #e0e0e0;
+            color: #000000;
         }
         
         /* Smooth scroll behavior */
@@ -232,15 +232,17 @@ $evaluation_status = $eval_settings['status'] ?? 'on';
                     <a href="#account" class="list-group-item list-group-item-action nav-link">
                         <i class="bi bi-person"></i> Account
                     </a>
-                    <a href="#evaluation" class="list-group-item list-group-item-action nav-link">
-                        <i class="bi bi-toggle-on"></i> Evaluations
-                    </a>
                     <a href="#security" class="list-group-item list-group-item-action nav-link">
                         <i class="bi bi-shield-lock"></i> Security
+                    </a>
+                    <?php if (getUserRole() === 'admin'): ?>
+                    <a href="#evaluation" class="list-group-item list-group-item-action nav-link">
+                        <i class="bi bi-toggle-on"></i> Evaluations
                     </a>
                     <a href="#system" class="list-group-item list-group-item-action nav-link">
                         <i class="bi bi-info-circle"></i> System Info
                     </a>
+                    <?php endif; ?>
                 </div>
             </div>
             
@@ -274,54 +276,6 @@ $evaluation_status = $eval_settings['status'] ?? 'on';
                         </div>
                     </div>
                 </div>
-                
-                <!-- Evaluation Settings (Admin Only) -->
-                <?php if (isAdmin()): ?>
-                <div class="card border-0 shadow-sm mb-4" id="evaluation">
-                    <div class="card-header">
-                        <h5 class="mb-0"><i class="bi bi-toggle-on"></i> Evaluation Sessions</h5>
-                    </div>
-                    <div class="card-body">
-                        <p class="mb-3 text-muted">Control whether students can submit evaluations</p>
-                        
-                        <form method="POST">
-                            <?php outputCSRFToken(); ?>
-                            <input type="hidden" name="update_evaluation_status" value="1">
-                            
-                            <div class="mb-3">
-                                <div class="form-check form-switch">
-                                    <input 
-                                        class="form-check-input" 
-                                        type="checkbox" 
-                                        id="evaluation_status" 
-                                        name="evaluation_status" 
-                                        value="on"
-                                        <?= $evaluation_status === 'on' ? 'checked' : '' ?>
-                                        style="cursor: pointer; width: 50px; height: 25px;"
-                                    >
-                                    <label class="form-check-label" for="evaluation_status" style="cursor: pointer; font-size: 16px;">
-                                        <strong>Evaluations: 
-                                            <span id="status-text" class="badge <?= $evaluation_status === 'on' ? 'bg-success' : 'bg-danger' ?>" style="font-size: 12px;">
-                                                <?= $evaluation_status === 'on' ? 'OPEN' : 'CLOSED' ?>
-                                            </span>
-                                        </strong>
-                                    </label>
-                                </div>
-                                <small class="form-text text-muted d-block mt-2">
-                                    <?= $evaluation_status === 'on' ? 
-                                        '✓ Students can submit evaluations' : 
-                                        '✗ Evaluations are closed - students will see a notice' 
-                                    ?>
-                                </small>
-                            </div>
-                            
-                            <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-save"></i> Save Settings
-                            </button>
-                        </form>
-                    </div>
-                </div>
-                <?php endif; ?>
                 
                 <!-- Security Settings -->
                 <div class="card border-0 shadow-sm mb-4" id="security">
@@ -376,7 +330,56 @@ $evaluation_status = $eval_settings['status'] ?? 'on';
                     </div>
                 </div>
                 
-                <!-- System Information -->
+                <!-- Evaluation Settings (Admin Only) -->
+                <?php if (isAdmin()): ?>
+                <div class="card border-0 shadow-sm mb-4" id="evaluation">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-toggle-on"></i> Evaluation Sessions</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-3 text-muted">Control whether students can submit evaluations</p>
+                        
+                        <form method="POST">
+                            <?php outputCSRFToken(); ?>
+                            <input type="hidden" name="update_evaluation_status" value="1">
+                            
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input 
+                                        class="form-check-input" 
+                                        type="checkbox" 
+                                        id="evaluation_status" 
+                                        name="evaluation_status" 
+                                        value="on"
+                                        <?= $evaluation_status === 'on' ? 'checked' : '' ?>
+                                        style="cursor: pointer; width: 50px; height: 25px;"
+                                    >
+                                    <label class="form-check-label" for="evaluation_status" style="cursor: pointer; font-size: 16px;">
+                                        <strong>Evaluations: 
+                                            <span id="status-text" class="badge <?= $evaluation_status === 'on' ? 'bg-success' : 'bg-danger' ?>" style="font-size: 12px;">
+                                                <?= $evaluation_status === 'on' ? 'OPEN' : 'CLOSED' ?>
+                                            </span>
+                                        </strong>
+                                    </label>
+                                </div>
+                                <small class="form-text text-muted d-block mt-2">
+                                    <?= $evaluation_status === 'on' ? 
+                                        '✓ Students can submit evaluations' : 
+                                        '✗ Evaluations are closed - students will see a notice' 
+                                    ?>
+                                </small>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-save"></i> Save Settings
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                <?php endif; ?>
+                
+                <!-- System Information (Admin Only) -->
+                <?php if (getUserRole() === 'admin'): ?>
                 <div class="card border-0 shadow-sm" id="system">
                     <div class="card-header">
                         <h5 class="mb-0"><i class="bi bi-info-circle"></i> System Information</h5>
@@ -415,6 +418,7 @@ $evaluation_status = $eval_settings['status'] ?? 'on';
                         </div>
                     </div>
                 </div>
+                <?php endif; ?>
             </div>
         </div>
     </div>
@@ -428,7 +432,8 @@ $evaluation_status = $eval_settings['status'] ?? 'on';
     <script>
         // Handle active sidebar link as user scrolls or clicks
         const navLinks = document.querySelectorAll('.list-group-item');
-        const sections = document.querySelectorAll('[id="account"], [id="evaluation"], [id="security"], [id="system"]');
+        // Get only sections that actually exist in the DOM
+        const sections = document.querySelectorAll('.card[id]');
         
         // Remove active class from all links
         function removeActiveClass() {
