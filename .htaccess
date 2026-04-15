@@ -14,7 +14,10 @@
     RewriteCond %{REQUEST_FILENAME} -d
     RewriteRule ^(.*)$ - [L]
     
-    # Route API requests to public_api.php
+    # Route API requests with .php to public_api.php (strip .php and rewrite)
+    RewriteRule ^api/([a-zA-Z0-9-]+)\.php(/.*)?$ public_api.php/api/$1$2 [QSA,L]
+    
+    # Route API requests without .php to public_api.php
     RewriteRule ^api/(.*)$ public_api.php/api/$1 [QSA,L]
 
     # Route everything else to index.php
