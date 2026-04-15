@@ -230,9 +230,6 @@ foreach ($teacher_stats as $teacher_id => &$stats) {
                 <p class="text-muted">View evaluation analytics and insights</p>
             </div>
             <div class="col-md-6 text-end">
-                <button class="btn btn-outline-secondary me-2" onclick="exportAnalyticsPDF()">
-                    <i class="bi bi-file-pdf"></i> Export PDF
-                </button>
                 <a href="/teacher-eval/admin/export-evaluations.php" class="btn btn-info">
                     <i class="bi bi-download"></i> Export CSV
                 </a>
@@ -364,7 +361,6 @@ foreach ($teacher_stats as $teacher_id => &$stats) {
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
     <script src="/teacher-eval/assets/js/main.js"></script>
-    <script src="/teacher-eval/assets/js/export-pdf.js"></script>
     <script>
         // Rating Distribution Chart
         const distributionCtx = document.getElementById('distributionChart').getContext('2d');

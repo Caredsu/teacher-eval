@@ -241,8 +241,8 @@ const ALLOWED_DEPARTMENTS = ['ECT', 'EDUC', 'CCJE', 'BHT'];
                     <p class="text-muted">Manage teacher information and assignments</p>
                 </div>
                 <div class="col-md-6 text-end">
-                    <button class="btn btn-outline-secondary me-2" onclick="exportTeachersPDF()">
-                        <i class="bi bi-file-pdf"></i> Export PDF
+                    <button class="btn btn-outline-secondary me-2" onclick="printTeachersTable()">
+                        <i class="bi bi-printer"></i> Print
                     </button>
                     <button class="btn btn-primary btn-lg" onclick="openTeacherModal()">
                         <i class="bi bi-plus-circle"></i> Add New Teacher
@@ -403,7 +403,6 @@ const ALLOWED_DEPARTMENTS = ['ECT', 'EDUC', 'CCJE', 'BHT'];
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
     <script src="/teacher-eval/assets/js/main.js"></script>
     <script src="/teacher-eval/assets/js/api-service.js"></script>
-    <script src="/teacher-eval/assets/js/export-pdf.js"></script>
     
     <!-- Expose user role to JavaScript -->
     <script>
@@ -757,35 +756,6 @@ const ALLOWED_DEPARTMENTS = ['ECT', 'EDUC', 'CCJE', 'BHT'];
             }
         }
         
-        function exportTeachersPDF() {
-            const rows = teachersTable.rows({ search: 'applied' }).data().toArray();
-            const doc = new jsPDF();
-            
-            doc.setFontSize(16);
-            doc.text('Teachers Report', 14, 22);
-            
-            doc.setFontSize(11);
-            doc.text('Generated: ' + new Date().toLocaleString(), 14, 32);
-            
-            const columns = ['Full Name', 'Department', 'Email', 'Status'];
-            const data = rows.map(row => [
-                row.full_name,
-                row.department,
-                row.email,
-                row.status
-            ]);
-            
-            doc.autoTable({
-                startY: 40,
-                head: [columns],
-                body: data,
-                theme: 'grid',
-                styles: { fontSize: 10 }
-            });
-            
-            doc.save('teachers_' + new Date().getTime() + '.pdf');
-        }
-        
         function showSuccess(message) {
             Swal.fire({
                 icon: 'success',
@@ -802,6 +772,52 @@ const ALLOWED_DEPARTMENTS = ['ECT', 'EDUC', 'CCJE', 'BHT'];
                 title: 'Error',
                 text: message
             });
+        }
+        
+        function printTeachersTable() {
+            const rows = teachersTable.rows({ search: 'applied' }).data().toArray();
+            
+            let printContent = '<html><head><meta charset="UTF-8"><title>Teachers Report</title>';
+            printContent += '<style>';
+            printContent += 'body { font-family: Arial, sans-serif; margin: 20px; background: white; }';
+            printContent += 'h1 { text-align: center; color: #333; margin-bottom: 30px; }';
+            printContent += 'table { width: 100%; border-collapse: collapse; margin-top: 20px; }';
+            printContent += 'th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }';
+            printContent += 'th { background: #667eea; color: white; font-weight: bold; }';
+            printContent += 'tr:nth-child(even) { background: #f9f9f9; }';
+            printContent += '.timestamp { text-align: center; color: #666; margin-top: 20px; font-size: 12px; }';
+            printContent += '@media print { body { margin: 0; } }';
+            printContent += '</style></head><body>';
+            
+            printContent += '<h1>Teachers Report</h1>';
+            printContent += '<p style="text-align: center; color: #666;">Generated: ' + new Date().toLocaleString() + '</p>';
+            printContent += '<table><thead><tr>';
+            printContent += '<th>Full Name</th><th>Department</th><th>Email</th><th>Status</th>';
+            printContent += '</tr></thead><tbody>';
+            
+            rows.forEach(row => {
+                const statusBadge = row.status === 'active' ? 
+                    '<span style="background: #d4edda; color: #155724; padding: 4px 8px; border-radius: 3px;">ACTIVE</span>' :
+                    '<span style="background: #f8d7da; color: #721c24; padding: 4px 8px; border-radius: 3px;">INACTIVE</span>';
+                
+                printContent += '<tr>';
+                printContent += '<td>' + (row.full_name || '') + '</td>';
+                printContent += '<td>' + (row.department || '') + '</td>';
+                printContent += '<td>' + (row.email || '') + '</td>';
+                printContent += '<td>' + statusBadge + '</td>';
+                printContent += '</tr>';
+            });
+            
+            printContent += '</tbody></table>';
+            printContent += '<div class="timestamp">Total Teachers: ' + rows.length + '</div>';
+            printContent += '</body></html>';
+            
+            const printWindow = window.open('', '', 'height=600,width=900');
+            printWindow.document.write(printContent);
+            printWindow.document.close();
+            setTimeout(() => {
+                printWindow.print();
+            }, 250);
         }
     </script>
     

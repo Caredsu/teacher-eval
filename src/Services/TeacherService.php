@@ -172,13 +172,30 @@ class TeacherService
      */
     private function formatTeacher($teacher)
     {
-        $fullName = trim(($teacher['first_name'] ?? '') . ' ' . ($teacher['middle_name'] ?? '') . ' ' . ($teacher['last_name'] ?? ''));
+        // Handle both old (firstname/lastname) and new (first_name/last_name) field names
+        $firstName = $teacher['first_name'] ?? $teacher['firstname'] ?? '';
+        $middleName = $teacher['middle_name'] ?? $teacher['middlename'] ?? '';
+        $lastName = $teacher['last_name'] ?? $teacher['lastname'] ?? '';
+        
+        // If name field exists but individual fields don't, parse it
+        if (empty($firstName) && empty($lastName) && isset($teacher['name'])) {
+            $nameParts = explode(' ', $teacher['name']);
+            $firstName = $nameParts[0] ?? '';
+            if (count($nameParts) > 2) {
+                $middleName = $nameParts[1] ?? '';
+                $lastName = $nameParts[2] ?? '';
+            } elseif (count($nameParts) > 1) {
+                $lastName = $nameParts[1] ?? '';
+            }
+        }
+        
+        $fullName = trim("$firstName $middleName $lastName");
         
         return [
             'id' => (string)$teacher['_id'],
-            'first_name' => $teacher['first_name'] ?? '',
-            'middle_name' => $teacher['middle_name'] ?? '',
-            'last_name' => $teacher['last_name'] ?? '',
+            'first_name' => $firstName,
+            'middle_name' => $middleName,
+            'last_name' => $lastName,
             'full_name' => $fullName ?: 'Unknown',
             'email' => $teacher['email'] ?? '',
             'department' => $teacher['department'] ?? '',

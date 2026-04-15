@@ -106,7 +106,19 @@ if ($__mongo_instance === null) {
         }
         
     } catch (\Exception $e) {
-        die("MongoDB Connection Error: " . $e->getMessage());
+        // Output JSON error instead of HTML
+        header('Content-Type: application/json; charset=utf-8');
+        http_response_code(500);
+        echo json_encode([
+            'success' => false,
+            'message' => 'Database connection error',
+            'error' => $e->getMessage(),
+            'details' => [
+                'connection_uri' => 'mongodb://' . DB_HOST . ':' . (defined('DB_PORT') ? DB_PORT : 27017),
+                'db_name' => DB_NAME
+            ]
+        ]);
+        exit;
     }
 }
 

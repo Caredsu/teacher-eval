@@ -38,7 +38,17 @@ class Bootstrap
         $this->container['db'] = function() {
             static $db = null;
             if ($db === null) {
-                $uri = 'mongodb://' . (getenv('DB_HOST') ?: '127.0.0.1') . ':' . (getenv('DB_PORT') ?: 27017);
+                $db_host = getenv('DB_HOST') ?: '127.0.0.1';
+                
+                // Check if it's a MongoDB Atlas connection string
+                if (strpos($db_host, 'mongodb+srv://') === 0 || strpos($db_host, 'mongodb://') === 0) {
+                    // Use as-is if it's already a full connection string
+                    $uri = $db_host;
+                } else {
+                    // Construct URI from host and port
+                    $uri = 'mongodb://' . $db_host . ':' . (getenv('DB_PORT') ?: 27017);
+                }
+                
                 $client = new MongoClient($uri);
                 $db = $client->selectDatabase(getenv('DB_NAME') ?: 'teacher_evaluation');
             }

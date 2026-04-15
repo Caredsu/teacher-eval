@@ -150,8 +150,8 @@ while (ob_get_level()) {
                 <p class="text-muted">Manage admin users and their roles</p>
             </div>
             <div class="col-md-6 text-end">
-                <button class="btn btn-outline-secondary me-2" onclick="exportUsersPDF()">
-                    <i class="bi bi-file-pdf"></i> Export PDF
+                <button class="btn btn-outline-secondary me-2" onclick="printUsersTable()">
+                    <i class="bi bi-printer"></i> Print
                 </button>
                 <button class="btn btn-primary btn-lg" onclick="openUserModal()">
                     <i class="bi bi-plus-circle"></i> Add New User
@@ -301,7 +301,6 @@ while (ob_get_level()) {
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
     <script src="/teacher-eval/assets/js/main.js"></script>
     <script src="/teacher-eval/assets/js/api-service.js"></script>
-    <script src="/teacher-eval/assets/js/export-pdf.js"></script>
     
     <script>
         // Users Management - Uses APIService for all operations
@@ -579,35 +578,6 @@ while (ob_get_level()) {
             }
         }
         
-        function exportUsersPDF() {
-            const rows = usersTable.rows({ search: 'applied' }).data().toArray();
-            const doc = new jsPDF();
-            
-            doc.setFontSize(16);
-            doc.text('Users Report', 14, 22);
-            
-            doc.setFontSize(11);
-            doc.text('Generated: ' + new Date().toLocaleString(), 14, 32);
-            
-            const columns = ['Username', 'Email', 'Role', 'Status', 'Created By'];
-            const data = rows.map(row => [
-                row.username,
-                row.email,
-                row.role_display,
-                row.status,
-                row.created_by
-            ]);
-            
-            doc.autoTable({
-                startY: 40,
-                head: [columns],
-                body: data,
-                theme: 'grid',
-                styles: { fontSize: 10 }
-            });
-            
-            doc.save('users_' + new Date().getTime() + '.pdf');
-        }
         
         function showSuccess(message) {
             Swal.fire({
@@ -625,6 +595,52 @@ while (ob_get_level()) {
                 title: 'Error',
                 text: message
             });
+        }
+        
+        function printUsersTable() {
+            const rows = usersTable.rows({ search: 'applied' }).data().toArray();
+            
+            let printContent = '<html><head><meta charset="UTF-8"><title>Users Report</title>';
+            printContent += '<style>';
+            printContent += 'body { font-family: Arial, sans-serif; margin: 20px; background: white; }';
+            printContent += 'h1 { text-align: center; color: #333; margin-bottom: 30px; }';
+            printContent += 'table { width: 100%; border-collapse: collapse; margin-top: 20px; }';
+            printContent += 'th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }';
+            printContent += 'th { background: #667eea; color: white; font-weight: bold; }';
+            printContent += 'tr:nth-child(even) { background: #f9f9f9; }';
+            printContent += '.timestamp { text-align: center; color: #666; margin-top: 20px; font-size: 12px; }';
+            printContent += '@media print { body { margin: 0; } }';
+            printContent += '</style></head><body>';
+            
+            printContent += '<h1>Users Report</h1>';
+            printContent += '<p style="text-align: center; color: #666;">Generated: ' + new Date().toLocaleString() + '</p>';
+            printContent += '<table><thead><tr>';
+            printContent += '<th>Username</th><th>Email</th><th>Role</th><th>Status</th>';
+            printContent += '</tr></thead><tbody>';
+            
+            rows.forEach(row => {
+                const statusBadge = row.status === 'active' ? 
+                    '<span style="background: #d4edda; color: #155724; padding: 4px 8px; border-radius: 3px;">ACTIVE</span>' :
+                    '<span style="background: #f8d7da; color: #721c24; padding: 4px 8px; border-radius: 3px;">INACTIVE</span>';
+                
+                printContent += '<tr>';
+                printContent += '<td>' + (row.username || '') + '</td>';
+                printContent += '<td>' + (row.email || '') + '</td>';
+                printContent += '<td>' + (row.role_display || row.role || '') + '</td>';
+                printContent += '<td>' + statusBadge + '</td>';
+                printContent += '</tr>';
+            });
+            
+            printContent += '</tbody></table>';
+            printContent += '<div class="timestamp">Total Users: ' + rows.length + '</div>';
+            printContent += '</body></html>';
+            
+            const printWindow = window.open('', '', 'height=600,width=900');
+            printWindow.document.write(printContent);
+            printWindow.document.close();
+            setTimeout(() => {
+                printWindow.print();
+            }, 250);
         }
     </script>
     

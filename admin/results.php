@@ -476,9 +476,6 @@ if (!empty($evaluations)) {
                         <i class="bi bi-printer"></i> Print Teacher Results
                     </button>
                 <?php endif; ?>
-                <button class="btn btn-outline-secondary" onclick="exportResultsPDF()">
-                    <i class="bi bi-file-pdf"></i> Export PDF
-                </button>
             </div>
         </div>
         
@@ -747,7 +744,6 @@ if (!empty($evaluations)) {
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
     <script src="/teacher-eval/assets/js/main.js"></script>
     <script src="/teacher-eval/assets/js/confirmation.js"></script>
-    <script src="/teacher-eval/assets/js/export-pdf.js"></script>
     <script>
         // DataTable and filter initialization
         // Chart generation removed - using integrated filter layout instead

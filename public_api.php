@@ -6,9 +6,23 @@
 
 // Load environment
 if (file_exists(__DIR__ . '/.env')) {
-    $env = parse_ini_file(__DIR__ . '/.env');
-    foreach ($env as $key => $value) {
-        putenv("$key=$value");
+    $env_content = file_get_contents(__DIR__ . '/.env');
+    $env_lines = explode("\n", $env_content);
+    foreach ($env_lines as $line) {
+        $line = trim($line);
+        // Skip comments and empty lines
+        if (empty($line) || strpos($line, '#') === 0) {
+            continue;
+        }
+        // Parse KEY=VALUE format
+        if (strpos($line, '=') !== false) {
+            list($key, $value) = explode('=', $line, 2);
+            $key = trim($key);
+            $value = trim($value);
+            if (!empty($key)) {
+                putenv("$key=$value");
+            }
+        }
     }
 }
 

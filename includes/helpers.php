@@ -4,6 +4,42 @@
  * Includes: CSRF Protection, Input Sanitization, Authentication
  */
 
+// Global error handler to prevent HTML error output in JSON APIs
+if (!function_exists('isJsonApiRequest')) {
+    function isJsonApiRequest() {
+        return strpos($_SERVER['REQUEST_URI'] ?? '', '/api/') !== false;
+    }
+}
+
+// Set error handler for JSON APIs
+if (isJsonApiRequest()) {
+    set_error_handler(function($errno, $errstr, $errfile, $errline) {
+        header('Content-Type: application/json; charset=utf-8');
+        http_response_code(500);
+        echo json_encode([
+            'success' => false,
+            'message' => 'Server error',
+            'error' => $errstr,
+            'file' => basename($errfile),
+            'line' => $errline
+        ]);
+        exit;
+    });
+    
+    set_exception_handler(function(Throwable $e) {
+        header('Content-Type: application/json; charset=utf-8');
+        http_response_code(500);
+        echo json_encode([
+            'success' => false,
+            'message' => 'Server error',
+            'error' => $e->getMessage(),
+            'file' => basename($e->getFile()),
+            'line' => $e->getLine()
+        ]);
+        exit;
+    });
+}
+
 // Set timezone to Manila, Philippines
 date_default_timezone_set('Asia/Manila');
 
