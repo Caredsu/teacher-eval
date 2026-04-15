@@ -1,8 +1,10 @@
 FROM php:8.4-apache
 
-# Install MongoDB extension dependencies
+# Install dependencies
 RUN apt-get update && apt-get install -y \
     libssl-dev \
+    unzip \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 # Install MongoDB extension
