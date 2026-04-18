@@ -9,7 +9,7 @@ require_once '../config/database.php';
 initializeSession();
 
 if (!isLoggedIn()) {
-    redirect('/teacher-eval/admin/login.php');
+    redirect(BASE_URL . '/admin/login.php');
 }
 
 logActivity('LOGOUT', 'Admin logged out');

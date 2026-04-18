@@ -82,7 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
     
-    redirect('/teacher-eval/admin/settings.php');
+    redirect(BASE_URL . '/admin/settings.php');
 }
 
 // Get admin info

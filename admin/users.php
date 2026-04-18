@@ -14,7 +14,7 @@ requireRole('admin');
 // Staff cannot access user management
 if (isStaff()) {
     setErrorMessage('Access denied. User management is admin-only.');
-    redirect('/teacher-eval/admin/dashboard.php');
+    redirect(BASE_URL . '/admin/dashboard.php');
 }
 
 $success_msg = getSuccessMessage();

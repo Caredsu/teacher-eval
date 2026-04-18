@@ -10,7 +10,7 @@ initializeSession();
 
 // If already logged in, redirect to dashboard
 if (isLoggedIn()) {
-    redirect('/teacher-eval/admin/dashboard.php');
+    redirect(BASE_URL . '/admin/dashboard.php');
 }
 
 $error = '';
@@ -72,7 +72,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             }
                             
                             logActivity('LOGIN', 'Admin logged in');
-                            redirect('/teacher-eval/admin/dashboard.php');
+                            redirect(BASE_URL . '/admin/dashboard.php');
                         }
                     }
                 } else {
