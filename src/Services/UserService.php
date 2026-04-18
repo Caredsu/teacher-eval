@@ -186,6 +186,14 @@ class UserService
             $formatted['created_by'] = $user['created_by'];
         }
         
+        if (isset($user['updated_at'])) {
+            $formatted['updated_at'] = $user['updated_at']->toDateTime()->format('Y-m-d H:i:s');
+        }
+        
+        if (isset($user['updated_by'])) {
+            $formatted['updated_by'] = $user['updated_by'];
+        }
+        
         if (isset($user['last_login']) && $user['last_login']) {
             $formatted['last_login'] = $user['last_login']->toDateTime()->format('Y-m-d H:i:s');
         } else {

@@ -1,3 +1,15 @@
+// DEBUG: Print .env file content to verify PHP can read it
+if (isset($_GET['debug_env']) && $_GET['debug_env'] === 'file') {
+    header('Content-Type: text/plain');
+    $envPath = __DIR__ . '/../.env';
+    if (file_exists($envPath)) {
+        echo ".env file found at: $envPath\n\n";
+        echo file_get_contents($envPath);
+    } else {
+        echo ".env file NOT FOUND at: $envPath\n";
+    }
+    exit;
+}
 <?php
 /**
  * Login API Endpoint
@@ -15,9 +27,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
+
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/helpers.php';
+
+// DEBUG OUTPUT - REMOVE AFTER TEST
+if (isset($_GET['debug_env']) && $_GET['debug_env'] === '1') {
+    header('Content-Type: text/plain');
+    echo "DB_HOST: ", defined('DB_HOST') ? DB_HOST : '', "\n";
+    echo "DB_NAME: ", defined('DB_NAME') ? DB_NAME : '', "\n";
+    echo "getenv('DB_HOST'): ", var_export(getenv('DB_HOST'), true), "\n";
+    echo "\n\n";
+    echo "_ENV:\n";
+    print_r($_ENV);
+    echo "\n_SERVER:\n";
+    print_r($_SERVER);
+    exit;
+}
 
 setJsonHeader();
 

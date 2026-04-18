@@ -1,206 +1,271 @@
 <?php
 /**
- * Users API Endpoint - Super Admin Only
+ * Users API Endpoint - Admin Only
  */
 
-require_once __DIR__ . '/../vendor/autoload.php';
-require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../includes/helpers.php';
-
+// Import MongoDB classes first
 use MongoDB\BSON\ObjectId;
 use MongoDB\BSON\UTCDateTime;
 
-setJsonHeader();
-requireLogin();
-
-// Only super_admin can access this endpoint
-if (!hasRole('super_admin')) {
-    jsonResponse(false, 'Unauthorized', null, 403);
-}
-
-$action = getPOST('action', getGET('action', ''));
-$db = Database::getInstance();
-$adminsCollection = $db->getCollection('admins');
+// Clean output buffers and set JSON header FIRST
+while (ob_get_level()) ob_end_clean();
+header('Content-Type: application/json; charset=utf-8');
+ini_set('display_errors', 0);
+error_reporting(E_ALL);
 
 try {
+    require_once __DIR__ . '/../vendor/autoload.php';
+    require_once __DIR__ . '/../config/database.php';
+    require_once __DIR__ . '/../includes/helpers.php';
+
+    // Start session if not started
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        session_start();
+    }
+    
+    // Check if logged in (without redirecting)
+    if (empty($_SESSION['admin_id'])) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+        exit;
+    }
+    
+    $admin_role = $_SESSION['admin_role'] ?? null;
+    if (!in_array($admin_role, ['admin', 'superadmin', 'staff', 'super_admin'])) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'message' => 'Forbidden']);
+        exit;
+    }
+    
+    $action = $_POST['action'] ?? $_GET['action'] ?? '';
+    
+    global $admins_collection;
+    
+    if (!isset($admins_collection)) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'message' => 'Database not initialized']);
+        exit;
+    }
+    
     switch ($action) {
+        case 'get_users':
+            $users = $admins_collection->find([], ['sort' => ['created_at' => -1]])->toArray();
+            
+            $formatted_users = [];
+            foreach ($users as $user) {
+                $created_at = $user['created_at'] ?? null;
+                $updated_at = $user['updated_at'] ?? null;
+                $last_login = $user['last_login'] ?? null;
+                
+                // Handle both DateTime objects and strings
+                if (is_object($created_at) && method_exists($created_at, 'toDateTime')) {
+                    $created_at = $created_at->toDateTime()->format('Y-m-d H:i:s');
+                } elseif (is_string($created_at)) {
+                    $created_at = $created_at;
+                } else {
+                    $created_at = '';
+                }
+                
+                if (is_object($updated_at) && method_exists($updated_at, 'toDateTime')) {
+                    $updated_at = $updated_at->toDateTime()->format('Y-m-d H:i:s');
+                } elseif (is_string($updated_at)) {
+                    $updated_at = $updated_at;
+                } else {
+                    $updated_at = '';
+                }
+                
+                if (is_object($last_login) && method_exists($last_login, 'toDateTime')) {
+                    $last_login = $last_login->toDateTime()->format('Y-m-d H:i:s');
+                } elseif (is_string($last_login)) {
+                    $last_login = $last_login;
+                } else {
+                    $last_login = 'Never';
+                }
+                
+                $formatted_users[] = [
+                    'id' => (string)$user['_id'],
+                    '_id' => (string)$user['_id'],
+                    'username' => $user['username'] ?? '',
+                    'email' => $user['email'] ?? '',
+                    'role' => $user['role'] ?? 'admin',
+                    'status' => $user['status'] ?? 'active',
+                    'created_at' => $created_at,
+                    'created_by' => $user['created_by'] ?? 'system',
+                    'updated_at' => $updated_at,
+                    'updated_by' => $user['updated_by'] ?? '',
+                    'last_login' => $last_login
+                ];
+            }
+            
+            echo json_encode([
+                'success' => true,
+                'message' => 'Success',
+                'data' => $formatted_users
+            ]);
+            break;
+            
+        case 'get_user':
+            $user_id = $_GET['id'] ?? $_POST['user_id'] ?? '';
+            
+            if (empty($user_id) || !isValidObjectId($user_id)) {
+                echo json_encode(['success' => false, 'message' => 'Invalid user ID']);
+                exit;
+            }
+            
+            $user = $admins_collection->findOne(['_id' => new ObjectId($user_id)]);
+            if (!$user) {
+                http_response_code(404);
+                echo json_encode(['success' => false, 'message' => 'User not found']);
+                exit;
+            }
+            
+            echo json_encode([
+                'success' => true,
+                'message' => 'Success',
+                'data' => $user
+            ]);
+            break;
+            
         case 'add_user':
-            if (!verifyCSRFToken(getPOST('csrf_token'))) {
-                jsonResponse(false, 'CSRF token invalid');
+            if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+                echo json_encode(['success' => false, 'message' => 'CSRF token invalid']);
+                exit;
             }
             
-            $username = getPOST('username', '');
-            $email = getPOST('email', '');
-            $password = getPOST('password', '');
-            $role = getPOST('role', '');
-            $status = getPOST('status', 'active');
+            $username = $_POST['username'] ?? '';
+            $email = $_POST['email'] ?? '';
+            $password = $_POST['password'] ?? '';
+            $role = $_POST['role'] ?? 'admin';
             
-            // Validation
             if (strlen($username) < 3) {
-                jsonResponse(false, 'Username must be at least 3 characters');
-            }
-            
-            if (!isValidEmail($email)) {
-                jsonResponse(false, 'Invalid email format');
+                echo json_encode(['success' => false, 'message' => 'Username must be at least 3 characters']);
+                exit;
             }
             
             if (strlen($password) < 6) {
-                jsonResponse(false, 'Password must be at least 6 characters');
+                echo json_encode(['success' => false, 'message' => 'Password must be at least 6 characters']);
+                exit;
             }
             
-            if (!in_array($role, ALLOWED_ROLES)) {
-                jsonResponse(false, 'Invalid role');
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                echo json_encode(['success' => false, 'message' => 'Invalid email format']);
+                exit;
             }
             
-            if (!in_array($status, ALLOWED_STATUS)) {
-                jsonResponse(false, 'Invalid status');
-            }
-            
-            // Check for duplicate username
-            $existing = $adminsCollection->findOne(['username' => $username]);
+            $existing = $admins_collection->findOne(['username' => $username]);
             if ($existing) {
-                jsonResponse(false, 'Username already exists');
+                echo json_encode(['success' => false, 'message' => 'Username already exists']);
+                exit;
             }
             
-            $user_data = [
+            $result = $admins_collection->insertOne([
                 'username' => $username,
                 'email' => $email,
                 'password' => hashPassword($password),
                 'role' => $role,
-                'status' => $status,
+                'status' => 'active',
                 'created_at' => new UTCDateTime(),
-                'created_by' => getLoggedInAdminUsername(),
+                'created_by' => $_SESSION['admin_username'] ?? 'admin',
                 'updated_at' => new UTCDateTime(),
-                'updated_by' => getLoggedInAdminUsername(),
+                'updated_by' => $_SESSION['admin_username'] ?? 'admin',
                 'last_login' => null
-            ];
+            ]);
             
-            $result = $adminsCollection->insertOne($user_data);
-            logActivity('USER_ADDED', "Added user: $username ($role)");
-            jsonResponse(true, 'User added successfully', ['id' => (string)$result->getInsertedId()]);
+            echo json_encode([
+                'success' => true,
+                'message' => 'User added successfully',
+                'data' => ['id' => (string)$result->getInsertedId()]
+            ]);
             break;
             
         case 'update_user':
-            if (!verifyCSRFToken(getPOST('csrf_token'))) {
-                jsonResponse(false, 'CSRF token invalid');
+            if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+                echo json_encode(['success' => false, 'message' => 'CSRF token invalid']);
+                exit;
             }
             
-            $user_id = getPOST('user_id', '');
-            if (!isValidObjectId($user_id)) {
-                jsonResponse(false, 'Invalid user ID');
+            $user_id = $_POST['user_id'] ?? '';
+            $email = $_POST['email'] ?? '';
+            $role = $_POST['role'] ?? 'admin';
+            $password = $_POST['password'] ?? '';
+            
+            if (empty($user_id) || !isValidObjectId($user_id)) {
+                echo json_encode(['success' => false, 'message' => 'Invalid user ID']);
+                exit;
             }
             
-            $email = getPOST('email', '');
-            $role = getPOST('role', '');
-            $status = getPOST('status', 'active');
-            $password = getPOST('password', '');
-            
-            if (!isValidEmail($email)) {
-                jsonResponse(false, 'Invalid email format');
-            }
-            
-            if (!in_array($role, ALLOWED_ROLES)) {
-                jsonResponse(false, 'Invalid role');
-            }
-            
-            if (!in_array($status, ALLOWED_STATUS)) {
-                jsonResponse(false, 'Invalid status');
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                echo json_encode(['success' => false, 'message' => 'Invalid email format']);
+                exit;
             }
             
             $update_data = [
                 'email' => $email,
                 'role' => $role,
-                'status' => $status,
                 'updated_at' => new UTCDateTime(),
-                'updated_by' => getLoggedInAdminUsername()
+                'updated_by' => $_SESSION['admin_username'] ?? 'admin'
             ];
             
             if (!empty($password)) {
                 if (strlen($password) < 6) {
-                    jsonResponse(false, 'Password must be at least 6 characters');
+                    echo json_encode(['success' => false, 'message' => 'Password must be at least 6 characters']);
+                    exit;
                 }
                 $update_data['password'] = hashPassword($password);
             }
             
-            $adminsCollection->updateOne(
+            $admins_collection->updateOne(
                 ['_id' => new ObjectId($user_id)],
                 ['$set' => $update_data]
             );
             
-            logActivity('USER_UPDATED', "Updated user ID: $user_id");
-            jsonResponse(true, 'User updated successfully');
+            echo json_encode([
+                'success' => true,
+                'message' => 'User updated successfully'
+            ]);
             break;
             
         case 'delete_user':
-            if (!verifyCSRFToken(getPOST('csrf_token'))) {
-                jsonResponse(false, 'CSRF token invalid');
+            if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+                echo json_encode(['success' => false, 'message' => 'CSRF token invalid']);
+                exit;
             }
             
-            $user_id = getPOST('user_id', '');
-            if (!isValidObjectId($user_id)) {
-                jsonResponse(false, 'Invalid user ID');
+            $user_id = $_POST['user_id'] ?? '';
+            
+            if (empty($user_id) || !isValidObjectId($user_id)) {
+                echo json_encode(['success' => false, 'message' => 'Invalid user ID']);
+                exit;
             }
             
-            // Prevent deletion of current user
-            if ($user_id === $_SESSION['admin_id']) {
-                jsonResponse(false, 'Cannot delete your own account');
+            if ($user_id === ($_SESSION['admin_id'] ?? null)) {
+                echo json_encode(['success' => false, 'message' => 'Cannot delete your own account']);
+                exit;
             }
             
-            $user = $adminsCollection->findOne(['_id' => new ObjectId($user_id)]);
+            $user = $admins_collection->findOne(['_id' => new ObjectId($user_id)]);
             if (!$user) {
-                jsonResponse(false, 'User not found');
+                echo json_encode(['success' => false, 'message' => 'User not found']);
+                exit;
             }
             
-            $adminsCollection->deleteOne(['_id' => new ObjectId($user_id)]);
-            logActivity('USER_DELETED', "Deleted user: " . ($user['username'] ?? $user_id));
-            jsonResponse(true, 'User deleted successfully');
-            break;
+            $admins_collection->deleteOne(['_id' => new ObjectId($user_id)]);
             
-        case 'get_users':
-            if (!verifyCSRFToken(getPOST('csrf_token'))) {
-                jsonResponse(false, 'CSRF token invalid');
-            }
-            
-            $users = $adminsCollection->find([], ['sort' => ['created_at' => -1]])->toArray();
-            
-            // Format response
-            $formatted_users = [];
-            foreach ($users as $user) {
-                $formatted_users[] = [
-                    '_id' => (string)$user['_id'],
-                    'username' => $user['username'],
-                    'email' => $user['email'],
-                    'role' => $user['role'],
-                    'role_display' => $user['role'] === 'super_admin' ? 'Super Admin' : 'Admin',
-                    'status' => $user['status'],
-                    'created_at' => isset($user['created_at']) ? formatDateTime($user['created_at']) : '',
-                    'created_by' => $user['created_by'] ?? '',
-                    'last_login' => isset($user['last_login']) ? formatDateTime($user['last_login']) : 'Never'
-                ];
-            }
-            
-            jsonResponse(true, 'Success', $formatted_users);
-            break;
-            
-        case 'get_user':
-            $user_id = getGET('id', getPOST('user_id', ''));
-            if (!isValidObjectId($user_id)) {
-                jsonResponse(false, 'Invalid user ID');
-            }
-            
-            $user = $adminsCollection->findOne(['_id' => new ObjectId($user_id)]);
-            if (!$user) {
-                jsonResponse(false, 'User not found');
-            }
-            
-            jsonResponse(true, 'Success', $user);
+            echo json_encode([
+                'success' => true,
+                'message' => 'User deleted successfully'
+            ]);
             break;
             
         default:
-            jsonResponse(false, 'Invalid action');
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => 'Invalid action']);
     }
     
-} catch (\Exception $e) {
-    logActivity('ERROR', 'Users API error: ' . $e->getMessage());
-    jsonResponse(false, 'Database error: ' . $e->getMessage(), null, 500);
+} catch (Exception $e) {
+    http_response_code(500);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Error: ' . $e->getMessage()
+    ]);
 }

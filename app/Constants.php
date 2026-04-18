@@ -8,9 +8,9 @@ define('APP_NAME', 'Teacher Evaluation System');
 define('APP_VERSION', '2.0.0');
 
 // Database
-define('DB_NAME', 'teacher_evaluation');
-define('DB_HOST', getenv('MONGO_URI') ?: '127.0.0.1'); // Use MONGO_URI env var if set, else localhost
-define('DB_PORT', 27017);
+define('DB_HOST', ($_ENV['DB_HOST'] ?? getenv('DB_HOST') ?: null));
+define('DB_NAME', isset($_ENV['DB_NAME']) && $_ENV['DB_NAME'] ? $_ENV['DB_NAME'] : 'teacher_eval');
+define('DB_PORT', isset($_ENV['DB_PORT']) ? $_ENV['DB_PORT'] : 27017);
 
 // Paths
 define('APP_ROOT', dirname(dirname(__FILE__)));
@@ -21,7 +21,9 @@ define('ASSETS_PATH', APP_ROOT . '/assets');
 define('STORAGE_PATH', APP_ROOT . '/storage');
 
 // URLs
-define('BASE_URL', '/teacher-eval');
+// For Render.com: App is at root (/)
+// For localhost: App is at /teacher-eval
+define('BASE_URL', getenv('APP_ENV') === 'production' ? '' : '/teacher-eval');
 define('ADMIN_URL', BASE_URL . '/admin');
 define('STUDENT_URL', BASE_URL . '/student');
 define('ASSETS_URL', BASE_URL . '/assets');

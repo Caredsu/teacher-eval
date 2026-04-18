@@ -14,9 +14,9 @@ define('APP_DEBUG', APP_ENV === 'development');
 // ============================================================================
 // DATABASE
 // ============================================================================
-define('DB_HOST', getenv('DB_HOST') ?: 'localhost');
-define('DB_PORT', getenv('DB_PORT') ?: 27017);
-define('DB_NAME', getenv('DB_NAME') ?: 'teacher_evaluation');
+define('DB_HOST', getenv('DB_HOST') ?: (isset($_ENV['DB_HOST']) ? $_ENV['DB_HOST'] : null));
+define('DB_PORT', getenv('DB_PORT') ?: (isset($_ENV['DB_PORT']) ? $_ENV['DB_PORT'] : 27017));
+define('DB_NAME', getenv('DB_NAME') ?: (isset($_ENV['DB_NAME']) && $_ENV['DB_NAME'] ? $_ENV['DB_NAME'] : 'teacher_eval'));
 
 // ============================================================================
 // COLLECTIONS

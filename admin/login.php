@@ -32,9 +32,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             try {
                 // Query admin in MongoDB
+                global $admins_collection;
                 $admin = $admins_collection->findOne(['username' => $username]);
                 
-                if ($admin && verifyPassword($password, $admin['password'])) {
+                // Check password - support both 'password' and 'password_hashed' field names
+                $password_field = isset($admin['password_hashed']) ? 'password_hashed' : 'password';
+                $stored_hash = $admin[$password_field] ?? null;
+                
+                if ($admin && $stored_hash && verifyPassword($password, $stored_hash)) {
                     // Check if user is active
                     $user_status = $admin['status'] ?? 'active';
                     if ($user_status !== 'active') {
@@ -87,6 +92,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
+// DEBUG: Output admins collection to verify DB source
+if (isset($_GET['debug_admins']) && $_GET['debug_admins'] === '1') {
+    global $admins_collection;
+    echo '<pre>';
+    print_r($admins_collection->find([])->toArray());
+    exit;
+}
 ?>
 
 <!DOCTYPE html>
@@ -100,7 +113,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="/teacher-eval/assets/css/dark-theme.css">
+    <link rel="stylesheet" href="<?= ASSETS_URL ?>/css/dark-theme.css">
     
     <style>
         * {
@@ -131,7 +144,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             left: 0;
             right: 0;
             bottom: 0;
-            background-image: url('/teacher-eval/assets/img/1.png');
+            background-image: url('<?= ASSETS_URL ?>/img/1.png');
             background-size: cover;
             background-position: center;
             background-attachment: fixed;

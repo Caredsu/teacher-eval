@@ -1,0 +1,89 @@
+<?php
+/**
+ * Direct API Endpoint Test
+ * Simulates POST request to /api/admin_users.php?action=get_users
+ */
+
+// Set session data (simulating a logged-in user)
+session_start();
+$_SESSION['admin_id'] = 'test_id_123';
+$_SESSION['admin_role'] = 'admin';
+$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+
+// Simulate POST request
+$_POST['action'] = 'get_users';
+$_POST['csrf_token'] = $_SESSION['csrf_token'];
+
+error_reporting(0);
+ini_set('display_errors', 0);
+
+// Output is now captured, redirect to API
+ob_start();
+?>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Endpoint Test</title>
+    <style>
+        body { font-family: monospace; background: #222; color: #0f0; padding: 20px; }
+        .success { color: #0f0; }
+        .error { color: #f00; }
+        pre { background: #111; padding: 15px; border-radius: 5px; overflow: auto; }
+    </style>
+</head>
+<body>
+
+<h1>🔧 API Endpoint Test</h1>
+
+<h2>Request Details:</h2>
+<pre>Action: get_users
+Method: POST
+Session Admin ID: test_id_123
+Session Role: admin
+CSRF Token: ***SET***</pre>
+
+<h2>API Response:</h2>
+<pre id="response">Loading...</pre>
+
+<script>
+// Make the API request just like the page does
+const formData = new FormData();
+formData.append('action', 'get_users');
+formData.append('csrf_token', '<?php echo $_SESSION['csrf_token']; ?>');
+
+fetch('/teacher-eval/api/admin_users.php', {
+    method: 'POST',
+    body: formData
+})
+.then(response => {
+    console.log('Response status:', response.status);
+    console.log('Response headers:', response.headers);
+    return response.text();
+})
+.then(data => {
+    document.getElementById('response').textContent = data;
+    
+    // Try to parse as JSON
+    try {
+        const json = JSON.parse(data);
+        if (json.success) {
+            document.getElementById('response').className = 'success';
+            document.getElementById('response').textContent = JSON.stringify(json, null, 2);
+        } else {
+            document.getElementById('response').className = 'error';
+        }
+    } catch (e) {
+        document.getElementById('response').className = 'error';
+        document.getElementById('response').textContent = 'Failed to parse JSON:\n' + data;
+    }
+})
+.catch(error => {
+    document.getElementById('response').className = 'error';
+    document.getElementById('response').textContent = 'Fetch error:\n' + error.message;
+});
+</script>
+
+</body>
+</html>
+<?php
+?>

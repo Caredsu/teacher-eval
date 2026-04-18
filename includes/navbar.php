@@ -115,7 +115,7 @@ if (session_status() === PHP_SESSION_NONE) {
     <div class="container-fluid">
         <!-- Brand -->
         <a class="navbar-brand fw-bold" href="/teacher-eval/admin/dashboard.php">
-            <img src="/teacher-eval/assets/img/2.png" alt="Logo" style="height: 40px; margin-right: 8px; vertical-align: middle;"> Teacher Evaluation System
+            <img src="<?= ASSETS_URL ?>/img/2.png" alt="Logo" style="height: 40px; margin-right: 8px; vertical-align: middle;"> Teacher Evaluation System
         </a>
         
         <!-- Toggler for mobile -->

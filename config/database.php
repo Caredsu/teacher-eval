@@ -4,29 +4,49 @@
  * Singleton pattern - only ONE connection created globally
  */
 
+// Load .env variables using vlucas/phpdotenv (MUST be first, only ONCE)
+if (file_exists(__DIR__ . '/../vendor/autoload.php')) {
+    require_once __DIR__ . '/../vendor/autoload.php';
+    if (class_exists('Dotenv\\Dotenv')) {
+        $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/../');
+        $dotenv->load();
+    }
+}
+
+require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/../app/Constants.php';
+/**
+ * MongoDB Database Configuration & Initialization
+ * Singleton pattern - only ONE connection created globally
+ */
+
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/../app/Constants.php';
 
 use MongoDB\Client as MongoClient;
 
+// DEBUG: Show actual DB_HOST being used
+if (isset($_GET['debug_db']) && $_GET['debug_db'] === '1') {
+    header('Content-Type: text/plain');
+    echo "DB_HOST: " . (defined('DB_HOST') ? DB_HOST : getenv('DB_HOST')) . "\n";
+    echo "DB_NAME: " . (defined('DB_NAME') ? DB_NAME : getenv('DB_NAME')) . "\n";
+    exit;
+}
 // SINGLETON: Static instance stored here
 static $__mongo_instance = null;
 
 if ($__mongo_instance === null) {
     try {
-        // For MongoDB Atlas, use the full connection string from DB_HOST
-        // For local MongoDB, construct from DB_HOST:DB_PORT
-        $uri = (strpos(DB_HOST, 'mongodb+srv://') === 0) 
-            ? DB_HOST 
-            : 'mongodb://' . DB_HOST . ':' . (defined('DB_PORT') ? DB_PORT : 27017);
+        // Always use DB_HOST from .env (Atlas or local)
+        $uri = DB_HOST;
         
         $options = [
-            'connectTimeoutMS' => 10000,         
-            'serverSelectionTimeoutMS' => 10000,
-            'socketTimeoutMS' => 30000,          
+            'connectTimeoutMS' => 20000,         // Increased for Render cold starts
+            'serverSelectionTimeoutMS' => 20000, // More time to find server
+            'socketTimeoutMS' => 60000,          // Increased from 30000
             'maxPoolSize' => 10,                 // Reuse connections
             'minPoolSize' => 2,                  
-            'waitQueueTimeoutMS' => 5000,        
+            'waitQueueTimeoutMS' => 10000,       // Increased from 5000
             'retryWrites' => true,              
         ];
         
@@ -114,7 +134,7 @@ if ($__mongo_instance === null) {
             'message' => 'Database connection error',
             'error' => $e->getMessage(),
             'details' => [
-                'connection_uri' => 'mongodb://' . DB_HOST . ':' . (defined('DB_PORT') ? DB_PORT : 27017),
+                'connection_uri' => DB_HOST,
                 'db_name' => DB_NAME
             ]
         ]);

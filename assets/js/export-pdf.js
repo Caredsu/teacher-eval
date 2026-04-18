@@ -66,7 +66,7 @@ async function exportTableToPDF(exportType, title) {
                         <div style="text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #e0e0e0;">
                             <!-- Logo -->
                             <div style="margin-bottom: 15px;">
-                                <img src="/teacher-eval/assets/img/2.png" alt="Fullbright College Logo" style="height: 70px; width: 70px; border-radius: 50%; object-fit: cover; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                                <img src="/assets/img/2.png" alt="Fullbright College Logo" style="height: 70px; width: 70px; border-radius: 50%; object-fit: cover; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
                             </div>
                             
                             <!-- School Name -->

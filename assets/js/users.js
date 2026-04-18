@@ -22,17 +22,25 @@ function initializeUsersTable() {
     usersTable = $('#usersTable').DataTable({
         processing: true,
         ajax: {
-            url: '/teacher-eval/admin/users.php',
+            url: '/teacher-eval/api/get-users.php',
             type: 'POST',
             data: function(d) {
-                d = {
-                    ajax_action: 'get_users',
-                    csrf_token: getCSRFToken()
-                };
-                return d;
+                const data = { action: 'get_users' };
+                const token = getCSRFToken();
+                if (token) data.csrf_token = token;
+                return data;
             },
             dataSrc: function(json) {
-                return json.data || [];
+                if (json.success) {
+                    return json.data || [];
+                } else {
+                    console.error('API Error:', json.message);
+                    return [];
+                }
+            },
+            error: function(xhr, error, thrown) {
+                console.error('DataTable Error:', error, thrown);
+                console.error('Response:', xhr.responseText);
             }
         },
         columns: [
@@ -42,7 +50,10 @@ function initializeUsersTable() {
             { data: 'email', name: 'email', render: function(data) {
                 return $('<div>').text(data).html();
             }},
-            { data: 'role_display', name: 'role', width: '12%' },
+            { data: 'role', name: 'role', width: '12%', render: function(data) {
+                const roleClass = data === 'admin' ? 'badge-primary' : (data === 'superadmin' ? 'badge-danger' : 'badge-secondary');
+                return `<span class="badge ${roleClass}">${data}</span>`;
+            }},
             { data: 'status', name: 'status', width: '10%', render: function(data) {
                 const badge = data === 'active' 
                     ? '<span class="status-badge status-active">✓ Active</span>'
@@ -50,8 +61,11 @@ function initializeUsersTable() {
                 return badge;
             }},
             { data: 'last_login', name: 'last_login', width: '15%' },
-            { data: 'created_by', name: 'created_by', width: '15%' },
-            { data: '_id', name: 'actions', width: '15%', orderable: false, searchable: false, render: function(data) {
+            { data: 'created_by', name: 'created_by', width: '12%' },
+            { data: 'updated_by', name: 'updated_by', width: '12%', render: function(data) {
+                return data ? data : '<span class="text-muted">-</span>';
+            }},
+            { data: '_id', name: 'actions', width: '12%', orderable: false, searchable: false, render: function(data) {
                 return `
                     <button class="btn btn-sm btn-outline-primary btn-edit-user" data-id="${data}" title="Edit">
                         <i class="bi bi-pencil"></i>
@@ -132,11 +146,11 @@ function openUserModal() {
  */
 function editUser(userId) {
     const formData = new FormData();
-    formData.append('ajax_action', 'get_user');
+    formData.append('action', 'get_user');
     formData.append('user_id', userId);
     formData.append('csrf_token', getCSRFToken());
 
-    fetch('/teacher-eval/admin/users.php', {
+    fetch('/teacher-eval/api/admin_users.php', {
         method: 'POST',
         body: formData
     })
@@ -182,11 +196,11 @@ function deleteUser(userId) {
     }).then((result) => {
         if (result.isConfirmed) {
             const formData = new FormData();
-            formData.append('ajax_action', 'delete_user');
+            formData.append('action', 'delete_user');
             formData.append('user_id', userId);
             formData.append('csrf_token', getCSRFToken());
 
-            fetch('/teacher-eval/admin/users.php', {
+            fetch('/teacher-eval/api/admin_users.php', {
                 method: 'POST',
                 body: formData
             })
@@ -218,8 +232,9 @@ function setupFormHandlers() {
             e.preventDefault();
             
             const formData = new FormData(this);
+            // action and csrf_token are already in the form
             
-            fetch('/teacher-eval/admin/users.php', {
+            fetch('/teacher-eval/api/admin_users.php', {
                 method: 'POST',
                 body: formData
             })

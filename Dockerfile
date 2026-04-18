@@ -25,6 +25,9 @@ RUN composer install --no-dev --optimize-autoloader
 # Enable Apache mod_rewrite
 RUN a2enmod rewrite
 
+# Configure Apache to listen on port 8080
+RUN sed -i 's/80/8080/g' /etc/apache2/ports.conf /etc/apache2/sites-enabled/000-default.conf
+
 # Set proper permissions
 RUN chown -R www-data:www-data /var/www/html
 
