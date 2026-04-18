@@ -9,6 +9,18 @@ namespace App\Middleware;
 class AuthMiddleware
 {
     /**
+     * Get base URL for redirects (handles both local /teacher-eval and production /)
+     */
+    private static function getBaseUrl()
+    {
+        // Check if it's production (Render.com or any non-localhost)
+        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+        $isProduction = strpos($host, 'localhost') === false && strpos($host, '127.0.0.1') === false;
+        
+        return $isProduction ? '' : '/teacher-eval';
+    }
+
+    /**
      * Require authentication
      * Call this at the beginning of protected pages
      */
@@ -19,7 +31,8 @@ class AuthMiddleware
         }
 
         if (!isset($_SESSION['admin_id']) || empty($_SESSION['admin_id'])) {
-            header('Location: /teacher-eval-system/admin/login.php');
+            $baseUrl = self::getBaseUrl();
+            header('Location: ' . $baseUrl . '/admin/login.php');
             exit;
         }
     }
@@ -32,7 +45,8 @@ class AuthMiddleware
         self::require_login();
 
         if (($_SESSION['admin_role'] ?? '') !== 'admin') {
-            header('Location: /teacher-eval-system/admin/dashboard.php');
+            $baseUrl = self::getBaseUrl();
+            header('Location: ' . $baseUrl . '/admin/dashboard.php');
             exit;
         }
     }
@@ -48,7 +62,8 @@ class AuthMiddleware
         }
 
         if (isset($_SESSION['admin_id']) && !empty($_SESSION['admin_id'])) {
-            header('Location: /teacher-eval-system/admin/dashboard.php');
+            $baseUrl = self::getBaseUrl();
+            header('Location: ' . $baseUrl . '/admin/dashboard.php');
             exit;
         }
     }
