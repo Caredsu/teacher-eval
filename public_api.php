@@ -67,8 +67,17 @@ try {
     // Parse route
     $request_uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
     
-    // Remove /teacher-eval/public_api.php/ and get the remaining path
-    $path = preg_replace('|^/teacher-eval/public_api\.php|', '', $request_uri);
+    // Remove base path dynamically (handles both /teacher-eval and /)
+    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    $isProduction = strpos($host, 'localhost') === false && strpos($host, '127.0.0.1') === false;
+    $basePath = $isProduction ? '' : '/teacher-eval';
+    
+    if ($basePath && strpos($request_uri, $basePath) === 0) {
+        $request_uri = substr($request_uri, strlen($basePath));
+    }
+    
+    // Also remove /public_api.php from the path
+    $path = preg_replace('|^/public_api\.php|', '', $request_uri);
     $path = trim($path, '/');
     $method = strtoupper($_SERVER['REQUEST_METHOD']);
     

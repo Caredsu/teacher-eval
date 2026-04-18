@@ -23,7 +23,16 @@ if (isset($_GET['request'])) {
 } else {
     // Fallback to parsing the URI path
     $request = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-    $request = str_replace('/teacher-eval', '', $request);
+    
+    // Remove base path dynamically (handles both /teacher-eval and /)
+    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    $isProduction = strpos($host, 'localhost') === false && strpos($host, '127.0.0.1') === false;
+    $basePath = $isProduction ? '' : '/teacher-eval';
+    
+    if ($basePath && strpos($request, $basePath) === 0) {
+        $request = substr($request, strlen($basePath));
+    }
+    
     $request = trim($request, '/');
     
     // Remove index.php if it's in the path
