@@ -1,6 +1,15 @@
 <IfModule mod_rewrite.c">
     RewriteEngine On
-    RewriteBase /teacher-eval/
+    
+    # Dynamic RewriteBase - works for both local (/teacher-eval/) and production (/)
+    RewriteCond %{HTTP_HOST} ^localhost [NC,OR]
+    RewriteCond %{HTTP_HOST} ^127\.0\.0\.1 [NC]
+    RewriteRule ^(.*)$ - [E=REWRITE_BASE:/teacher-eval/]
+    
+    RewriteCond %{ENV:REWRITE_BASE} ^$
+    RewriteRule ^(.*)$ - [E=REWRITE_BASE:/]
+    
+    RewriteBase %{ENV:REWRITE_BASE}
 
     # Handle OPTIONS requests (preflight)
     RewriteCond %{REQUEST_METHOD} ^OPTIONS$ [NC]
