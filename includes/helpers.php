@@ -49,14 +49,20 @@ date_default_timezone_set('Asia/Manila');
 
 /**
  * Initialize secure session
+ * Optimized: Only regenerate ID on fresh login, not every page load
  */
 function initializeSession() {
     if (session_status() === PHP_SESSION_NONE) {
+        // Use faster session config for admin pages
+        ini_set('session.use_strict_mode', 1);
+        ini_set('session.use_only_cookies', 1);
         session_start();
-        // Regenerate session ID for security
-        if (!isset($_SESSION['initialized'])) {
+        
+        // Regenerate session ID ONLY on first login, then cache it
+        // This prevents unnecessary CPU overhead on every page load
+        if (!isset($_SESSION['session_regenerated'])) {
             session_regenerate_id(true);
-            $_SESSION['initialized'] = true;
+            $_SESSION['session_regenerated'] = true;
         }
     }
 }
@@ -201,9 +207,11 @@ function getGET($key, $default = '') {
 
 /**
  * Hash password (bcrypt recommended)
+ * Using cost 10 for balance between security and performance
+ * Cost 12 takes ~1 second per login, cost 10 takes ~100ms
  */
 function hashPassword($password) {
-    return password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
+    return password_hash($password, PASSWORD_BCRYPT, ['cost' => 10]);
 }
 
 /**

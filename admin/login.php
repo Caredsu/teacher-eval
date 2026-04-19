@@ -1,17 +1,21 @@
 <?php
 /**
- * Admin Login Page
+ * Admin Login Page - Optimized for Speed
  */
 
+// Fast-start: Load only essential functions first
 require_once '../includes/helpers.php';
-require_once '../config/database.php';
 
+// Check if already logged in BEFORE loading database (faster)
 initializeSession();
-
-// If already logged in, redirect to dashboard
 if (isLoggedIn()) {
-    redirect(BASE_URL . '/admin/dashboard.php');
+    // Redirect using JavaScript for instant perceived speed
+    echo '<script>window.location.href="' . (isset($_SERVER['HTTP_HOST']) ? 'https://' . $_SERVER['HTTP_HOST'] : 'http://localhost') . '/teacher-eval/admin/dashboard.php";</script>';
+    exit;
 }
+
+// Load database only if NOT already logged in
+require_once '../config/database.php';
 
 $error = '';
 $success = '';
@@ -110,6 +114,10 @@ if (isset($_GET['debug_admins']) && $_GET['debug_admins'] === '1') {
     <meta name="description" content="Fullbright College Inc. - Teacher Evaluation System">
     <meta name="theme-color" content="#3B82F6">
     <title>Admin Login - Fullbright College Inc.</title>
+    
+    <!-- Preload critical resources for faster rendering -->
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" as="style">
+    <link rel="preload" href="<?= ASSETS_URL ?>/css/dark-theme.css" as="style">
     
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -882,6 +890,13 @@ if (isset($_GET['debug_admins']) && $_GET['debug_admins'] === '1') {
                         }
                     }, 3000);
                 });
+            }
+            
+            // Register Service Worker for instant page loads on repeat visits
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/teacher-eval/assets/js/admin-service-worker.js')
+                    .then(registration => console.log('Service Worker registered'))
+                    .catch(err => console.log('Service Worker registration failed:', err));
             }
         });
     </script>
