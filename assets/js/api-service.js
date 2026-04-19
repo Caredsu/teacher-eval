@@ -16,7 +16,11 @@ class APIService {
     async request(method, endpoint, data = null) {
         try {
             // Add .php extension for direct access to API files
-            const url = `${this.apiPath}${endpoint}.php`;
+            // Handle query strings properly - add .php before the query string
+            const hasQuery = endpoint.includes('?');
+            const baseEndpoint = hasQuery ? endpoint.split('?')[0] : endpoint;
+            const queryString = hasQuery ? '?' + endpoint.split('?')[1] : '';
+            const url = `${this.apiPath}${baseEndpoint}.php${queryString}`;
             const options = {
                 method: method,
                 headers: {

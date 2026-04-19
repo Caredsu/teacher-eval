@@ -37,12 +37,21 @@ if (isset($_GET['get_notif_count'])) {
 if (isset($_GET['clear_notifications'])) {
     header('Content-Type: application/json');
     try {
-        // Get current estimated count and save it as the baseline
-        $current_count = $evaluations_collection->estimatedDocumentCount();
-        $_SESSION['notifications_cleared_at'] = (string)$current_count;
-        echo json_encode(['success' => true]);
+        // Save current timestamp as the clear point with microseconds for uniqueness
+        $clearTime = new MongoDB\BSON\UTCDateTime(round(microtime(true) * 1000));
+        $_SESSION['notifications_cleared_at'] = $clearTime;
+        
+        // Force session save immediately
+        session_write_close();
+        
+        // Verify it was saved by reading it back
+        session_start();
+        $verify = $_SESSION['notifications_cleared_at'] ?? null;
+        session_write_close();
+        
+        echo json_encode(['success' => true, 'time' => $verify ? $verify->__toString() : 'failed']);
     } catch (\Exception $e) {
-        echo json_encode(['success' => false]);
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
     }
     exit;
 }
@@ -51,19 +60,22 @@ if (isset($_GET['clear_notifications'])) {
 if (isset($_GET['get_notifications'])) {
     header('Content-Type: application/json');
     try {
-        $total_count = $evaluations_collection->estimatedDocumentCount();
+        // Get the cleared timestamp from session (only show notifications AFTER this time)
+        $cleared_at = isset($_SESSION['notifications_cleared_at']) 
+            ? $_SESSION['notifications_cleared_at']
+            : new MongoDB\BSON\UTCDateTime(0);
         
-        // Get cleared baseline from session
-        $cleared_baseline = isset($_SESSION['notifications_cleared_at']) 
-            ? (int)$_SESSION['notifications_cleared_at'] 
-            : 0;
+        // Build filter - only get evaluations AFTER the cleared timestamp
+        $filter = [
+            'submitted_at' => ['$gt' => $cleared_at]
+        ];
         
-        // Calculate "new" notifications since last clear (for badge)
-        $new_count = max(0, $total_count - $cleared_baseline);
+        // Get total count of new notifications
+        $new_count = $evaluations_collection->countDocuments($filter);
         
-        // But ALWAYS show last 5 evaluations in the list (with field projection)
+        // Get recent new evaluations with field projection
         $recent_evals = $evaluations_collection->find(
-            [],
+            $filter,
             [
                 'projection' => ['teacher_id' => 1, 'submitted_at' => 1],
                 'sort' => ['submitted_at' => -1],
@@ -174,8 +186,17 @@ if (isset($_GET['get_notifications'])) {
 if (isset($_GET['get_notif_count'])) {
     header('Content-Type: application/json');
     try {
-        $total_count = $evaluations_collection->estimatedDocumentCount();
-        echo json_encode(['count' => $total_count]);
+        // Get the cleared timestamp from session
+        $cleared_at = isset($_SESSION['notifications_cleared_at']) 
+            ? $_SESSION['notifications_cleared_at']
+            : new MongoDB\BSON\UTCDateTime(0);
+        
+        // Count only new notifications after cleared timestamp
+        $new_count = $evaluations_collection->countDocuments([
+            'submitted_at' => ['$gt' => $cleared_at]
+        ]);
+        
+        echo json_encode(['count' => $new_count]);
     } catch (\Exception $e) {
         echo json_encode(['count' => 0]);
     }
@@ -211,6 +232,12 @@ if (isset($_GET['check_new'])) {
 $show_skeleton = isset($_SESSION['just_logged_in']) && $_SESSION['just_logged_in'];
 if ($show_skeleton) {
     unset($_SESSION['just_logged_in']);
+    
+    // Initialize notifications cleared timestamp on first login
+    // This prevents showing old notifications from before login
+    if (!isset($_SESSION['notifications_cleared_at'])) {
+        $_SESSION['notifications_cleared_at'] = new MongoDB\BSON\UTCDateTime();
+    }
 }
 
 // Initialize variables with defaults
@@ -544,6 +571,12 @@ try {
         .skeleton-loader.loading {
             display: block;
         }
+
+        /* Position toast notification lower to avoid navbar */
+        .toast-notification-custom {
+            top: 100px !important;
+            right: 20px !important;
+        }
     </style>
 </head>
 <body>
@@ -862,7 +895,7 @@ try {
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
-    <script src="<?= ASSETS_URL ?>/js/api-service.js"></script>
+    <script src="<?= ASSETS_URL ?>/js/api-service.js?v=2"></script>
     <script src="<?= ASSETS_URL ?>/js/main.js"></script>
     <script src="<?= ASSETS_URL ?>/js/confirmation.js"></script>
     <script src="<?= ASSETS_URL ?>/js/export-pdf.js"></script>
@@ -877,6 +910,30 @@ try {
                 setTimeout(function() {
                     skeletonLoader.classList.remove('loading');
                 }, 500);
+            }
+            
+            // Show login success toast notification
+            if (showSkeleton) {
+                setTimeout(function() {
+                    // Use SweetAlert2 for login success notification
+                    Swal.fire({
+                        position: 'top-end',
+                        icon: 'success',
+                        title: 'Welcome back!',
+                        html: '<strong><?= escapeOutput($_SESSION['admin_username'] ?? 'Admin') ?></strong><br>You have successfully logged in',
+                        toast: true,
+                        showConfirmButton: false,
+                        timer: 4000,
+                        timerProgressBar: true,
+                        customClass: {
+                            container: 'toast-notification-custom'
+                        },
+                        didOpen: (toast) => {
+                            toast.addEventListener('mouseenter', Swal.stopTimer)
+                            toast.addEventListener('mouseleave', Swal.resumeTimer)
+                        }
+                    });
+                }, 300);
             }
         });
 

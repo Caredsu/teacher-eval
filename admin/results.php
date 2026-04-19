@@ -751,7 +751,7 @@ if (!empty($evaluations)) {
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
-    <script src="<?= ASSETS_URL ?>/js/api-service.js"></script>
+    <script src="<?= ASSETS_URL ?>/js/api-service.js?v=2"></script>
     <script src="<?= ASSETS_URL ?>/js/main.js"></script>
     <script src="<?= ASSETS_URL ?>/js/confirmation.js"></script>
     <script>
@@ -1109,21 +1109,40 @@ if (!empty($evaluations)) {
     </script>
     
     <!-- Evaluation Details Modal -->
-    <div class="modal fade" id="evalDetailsModal" tabindex="-1">
+    <div class="modal fade" id="evalDetailsModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-lg">
-            <div class="modal-content" style="background: #ffffff; color: #000000; border: none;">
-                <div class="modal-header" style="background: #f1f5f9; border-bottom: 1px solid #e2e8f0;">
-                    <h5 class="modal-title" style="color: #000000;">Evaluation Details</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <div class="modal-content" style="background: #ffffff; color: #000000; border: none; box-shadow: 0 5px 15px rgba(0,0,0,0.3);">
+                <div class="modal-header" style="background: #f1f5f9; border-bottom: 1px solid #e2e8f0; padding: 15px 20px;">
+                    <h5 class="modal-title" style="color: #000000; margin: 0;">Evaluation Details</h5>
+                    <button type="button" class="btn-close btn-close-dark" data-bs-dismiss="modal" aria-label="Close" style="opacity: 0.7;"></button>
                 </div>
-                <div class="modal-body" style="background: #ffffff;">
+                <div class="modal-body" style="background: #ffffff; max-height: 70vh; overflow-y: auto;">
                     <div id="evalDetailsContent" class="spinner-border text-dark" role="status">
                         <span class="visually-hidden">Loading...</span>
                     </div>
                 </div>
+                <div class="modal-footer" style="background: #f1f5f9; border-top: 1px solid #e2e8f0;">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+                </div>
             </div>
         </div>
     </div>
+    
+    <style>
+        /* Fix modal backdrop transparency */
+        .modal.fade .modal-dialog {
+            transition: transform .3s ease-out;
+        }
+        
+        .modal-backdrop {
+            --bs-backdrop-bg: #000;
+            --bs-backdrop-opacity: 0.5 !important;
+        }
+        
+        .modal-backdrop.show {
+            opacity: 0.5 !important;
+        }
+    </style>
     
     <!-- Footer -->
     <?php include '../includes/footer.php'; ?>

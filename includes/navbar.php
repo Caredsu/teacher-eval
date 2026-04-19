@@ -293,17 +293,43 @@ if (session_status() === PHP_SESSION_NONE) {
     // Clear notifications
     clearNotifBtn.addEventListener('click', function(e) {
         e.preventDefault();
+        e.stopPropagation();
         isClearing = true;
+        
         fetch('/teacher-eval/admin/dashboard.php?clear_notifications=1')
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    loadNotifications();
+                    // Clear the notifications list
+                    const notifList = document.getElementById('notif-list');
+                    notifList.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;"><small>No notifications</small></div>';
+                    
+                    // Update badge - hide it
+                    const badge = document.getElementById('notif-badge');
+                    if (badge) {
+                        badge.style.display = 'none';
+                    }
+                    
+                    // Update localStorage to prevent badge reappearing
+                    localStorage.setItem('notif_last_read_count', '0');
+                    
+                    // Update total count display
+                    const total = document.getElementById('notif-total');
+                    if (total) {
+                        total.textContent = '0';
+                    }
+                    
+                    // Close dropdown
                     notifDropdown.style.display = 'none';
                     isClearing = false;
                 }
             })
-            .catch(error => console.log('Clear notifications error:', error.message));
+            .catch(error => {
+                console.log('Clear notifications error:', error.message);
+                isClearing = false;
+            });
+        
+        return false;
     });
     
     // Close dropdown when clicking outside
@@ -320,28 +346,38 @@ if (session_status() === PHP_SESSION_NONE) {
         fetch('/teacher-eval/admin/dashboard.php?get_notifications=1')
             .then(response => response.json())
             .then(data => {
+                console.log('Notification data received:', data);
                 const badge = document.getElementById('notif-badge');
                 const total = document.getElementById('notif-total');
                 const list = document.getElementById('notif-list');
                 
                 // Get last read count from localStorage
                 let lastReadCount = localStorage.getItem('notif_last_read_count');
+                console.log('Last read count from storage:', lastReadCount);
                 
-                // Initialize on first load - set to current count so nothing shows as unread
-                if (lastReadCount === null) {
-                    lastReadCount = data.count;
-                    localStorage.setItem('notif_last_read_count', data.count);
-                } else {
-                    lastReadCount = parseInt(lastReadCount);
-                }
-                
-                // Show badge only if current count > last read count AND dropdown is closed
-                const hasUnread = data.count > lastReadCount;
-                if (hasUnread && notifDropdown.style.display !== 'block') {
-                    badge.textContent = data.count > 9 ? '9+' : data.count;
-                    badge.style.display = 'inline-block';
-                } else {
+                // If count is 0, hide badge and don't show as unread
+                if (data.count === 0) {
+                    console.log('Count is 0, hiding badge');
                     badge.style.display = 'none';
+                    localStorage.setItem('notif_last_read_count', '0');
+                } else {
+                    // Initialize on first load - set to current count so nothing shows as unread
+                    if (lastReadCount === null) {
+                        lastReadCount = data.count;
+                        localStorage.setItem('notif_last_read_count', data.count);
+                        badge.style.display = 'none';
+                    } else {
+                        lastReadCount = parseInt(lastReadCount);
+                        
+                        // Show badge only if current count > last read count AND dropdown is closed
+                        const hasUnread = data.count > lastReadCount;
+                        if (hasUnread && notifDropdown.style.display !== 'block') {
+                            badge.textContent = data.count > 9 ? '9+' : data.count;
+                            badge.style.display = 'inline-block';
+                        } else {
+                            badge.style.display = 'none';
+                        }
+                    }
                 }
                 
                 total.textContent = data.count > 0 ? data.count : '0';

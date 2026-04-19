@@ -3,9 +3,6 @@
  * Simple Users API - Direct copy from what works
  */
 
-use MongoDB\BSON\ObjectId;
-use MongoDB\BSON\UTCDateTime;
-
 // Clean output first
 while (ob_get_level()) ob_end_clean();
 header('Content-Type: application/json; charset=utf-8');

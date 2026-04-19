@@ -445,6 +445,14 @@ table tbody tr * {
     font-weight: 600;
 }
 
+.badge.bg-light {
+    color: #000000 !important;
+}
+
+.badge.text-dark {
+    color: #000000 !important;
+}
+
 .badge.bg-success {
     background: var(--color-success) !important;
 }

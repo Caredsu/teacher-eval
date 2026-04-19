@@ -13,5 +13,10 @@ if (!isLoggedIn()) {
 }
 
 logActivity('LOGOUT', 'Admin logged out');
-logout();
+
+// Redirect to login with logout flag
+session_start();
+session_destroy();
+header('Location: ' . BASE_URL . '/admin/login.php?logged_out=1');
+exit;
 ?>

@@ -690,6 +690,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     </style>
+    
+    <!-- SweetAlert2 for toast notifications -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
 </head>
 <body>
     <div class="login-wrapper">
@@ -965,6 +969,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }, 3000);
             });
+
+            // Check for logout notification
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('logged_out') && urlParams.get('logged_out') === '1') {
+                // Show logout success toast at top right
+                setTimeout(function() {
+                    Swal.fire({
+                        position: 'top-end',
+                        icon: 'success',
+                        title: 'Logged Out Successfully',
+                        text: 'You have been logged out of the system',
+                        toast: true,
+                        showConfirmButton: false,
+                        timer: 3000,
+                        timerProgressBar: true,
+                        didOpen: (toast) => {
+                            toast.addEventListener('mouseenter', Swal.stopTimer)
+                            toast.addEventListener('mouseleave', Swal.resumeTimer)
+                        }
+                    });
+                    
+                    // Remove the logged_out parameter from URL
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }, 300);
+            }
 
             // Service Worker Registration
             if ('serviceWorker' in navigator) {
