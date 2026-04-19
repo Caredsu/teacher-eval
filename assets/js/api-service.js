@@ -6,7 +6,8 @@
 class APIService {
     constructor(baseUrl = '/teacher-eval') {
         this.baseUrl = baseUrl;
-        this.apiPath = `${baseUrl}/public_api.php/api`;
+        // Use /api/ endpoint - .htaccess will route to public_api.php/api/
+        this.apiPath = `${baseUrl}/api`;
     }
 
     /**
