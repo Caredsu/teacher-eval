@@ -44,14 +44,15 @@ if (file_exists($cache_file) && (time() - filemtime($cache_file)) < $cache_ttl) 
     // Calculate fresh results using optimized aggregation
     try {
         $pipeline = [
-            // Only get last 30 days of evaluations for analytics
-            [
-                '$match' => [
-                    'submitted_at' => [
-                        '$gte' => new MongoDB\BSON\UTCDateTime((time() - 2592000) * 1000)
-                    ]
-                ]
-            ],
+            // Get all evaluations (removed 30-day limit)
+            // Uncomment below to filter by date range:
+            // [
+            //     '$match' => [
+            //         'submitted_at' => [
+            //             '$gte' => new MongoDB\BSON\UTCDateTime((time() - 2592000) * 1000)
+            //         ]
+            //     ]
+            // ],
             // Project only fields we need
             [
                 '$project' => [

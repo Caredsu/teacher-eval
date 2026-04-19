@@ -277,19 +277,74 @@ try {
         ]
     );
     
-    // TOP PERFORMERS: Load async via JavaScript to not block page load
-    // For now, just use a simple placeholder
+    // Get top performers using MongoDB aggregation pipeline
     $teacher_ratings = [];
     $top_performers = [];
     
+    try {
+        $pipeline = [
+            // Project only needed fields
+            ['$project' => ['teacher_id' => 1, 'answers' => 1]],
+            // Unwind answers array
+            ['$unwind' => '$answers'],
+            // Group by teacher and calculate average
+            [
+                '$group' => [
+                    '_id' => '$teacher_id',
+                    'avg_rating' => ['$avg' => '$answers.rating'],
+                    'total_evals' => ['$sum' => 1]
+                ]
+            ],
+            // Sort by rating descending
+            ['$sort' => ['avg_rating' => -1]],
+            // Get top 100 teachers
+            ['$limit' => 100]
+        ];
+        
+        $results = $evaluations_collection->aggregate($pipeline);
+        
+        foreach ($results as $result) {
+            $teacher_id = (string)$result['_id'];
+            
+            // Get teacher name from cache or fetch
+            $teacher_name = 'Anonymous';
+            if (isset($teachers_cache[$teacher_id])) {
+                $teacher = $teachers_cache[$teacher_id];
+                $full_name = trim(($teacher['first_name'] ?? '') . ' ' . ($teacher['middle_name'] ?? '') . ' ' . ($teacher['last_name'] ?? ''));
+                $teacher_name = !empty($full_name) ? $full_name : ($teacher['name'] ?? 'Anonymous');
+            } else {
+                // Fetch single teacher if not in cache
+                try {
+                    $teacher_obj_id = ctype_xdigit($teacher_id) && strlen($teacher_id) === 24 
+                        ? new MongoDB\BSON\ObjectId($teacher_id) 
+                        : $teacher_id;
+                    $teacher = $teachers_collection->findOne(['_id' => $teacher_obj_id]);
+                    if ($teacher) {
+                        $full_name = trim(($teacher['first_name'] ?? '') . ' ' . ($teacher['middle_name'] ?? '') . ' ' . ($teacher['last_name'] ?? ''));
+                        $teacher_name = !empty($full_name) ? $full_name : ($teacher['name'] ?? 'Anonymous');
+                    }
+                } catch (\Exception $e) {
+                    // Use anonymous if lookup fails
+                }
+            }
+            
+            $teacher_ratings[] = [
+                'name' => $teacher_name,
+                'avg_rating' => round((float)$result['avg_rating'], 1),
+                'total_evals' => (int)$result['total_evals']
+            ];
+        }
+        
+        // Get top 3 performers
+        $top_performers = array_slice($teacher_ratings, 0, 3);
+    } catch (\Exception $e) {
+        error_log('Top performers query error: ' . $e->getMessage());
+        $teacher_ratings = [];
+        $top_performers = [];
+    }
+    
     // Calculate key metrics
     $completion_rate = $total_teachers > 0 ? round(($total_evaluations / $total_teachers) * 100, 1) : 0;
-    
-    // Get top performers (top 3 teachers by rating)
-    usort($teacher_ratings, function($a, $b) {
-        return $b['avg_rating'] <=> $a['avg_rating'];
-    });
-    $top_performers = array_slice($teacher_ratings, 0, 3);
     
     // Calculate average rating
     $overall_avg_rating = count($teacher_ratings) > 0 
