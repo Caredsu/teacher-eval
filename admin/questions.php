@@ -237,7 +237,6 @@ requirePermission('manage_questions');
                                 <tr>
                                     <th>Question</th>
                                     <th>Order</th>
-                                    <th>Required</th>
                                     <th>Status</th>
                                     <th>Actions</th>
                                 </tr>
@@ -358,14 +357,7 @@ requirePermission('manage_questions');
                 serverSide: false,
                 columns: [
                     { data: 'question_text', title: 'Question' },
-                    { data: 'display_order', title: 'Order' },
-                    {
-                        data: 'required',
-                        title: 'Required',
-                        render: function(data) {
-                            return data ? '✓ Yes' : '✗ No';
-                        }
-                    },
+                    { data: 'question_order', title: 'Order' },
                     {
                         data: 'status',
                         title: 'Status',
@@ -584,7 +576,7 @@ requirePermission('manage_questions');
                     'question_text': 'question_text',
                     'category': 'category',
                     'type': 'type',
-                    'display_order': 'display_order',
+                    'question_order': 'display_order',
                     'status': 'status'
                 };
                 
@@ -641,7 +633,7 @@ requirePermission('manage_questions');
             printContent += '<h1>Questions Report</h1>';
             printContent += '<p style="text-align: center; color: #666;">Generated: ' + new Date().toLocaleString() + '</p>';
             printContent += '<table><thead><tr>';
-            printContent += '<th>Question</th><th>Order</th><th>Required</th><th>Status</th>';
+            printContent += '<th>Question</th><th>Order</th><th>Status</th>';
             printContent += '</tr></thead><tbody>';
             
             rows.forEach(row => {
@@ -651,8 +643,7 @@ requirePermission('manage_questions');
                 
                 printContent += '<tr>';
                 printContent += '<td>' + (row.question_text || '') + '</td>';
-                printContent += '<td>' + (row.display_order || '') + '</td>';
-                printContent += '<td>' + (row.required ? 'Yes' : 'No') + '</td>';
+                printContent += '<td>' + (row.question_order || '') + '</td>';
                 printContent += '<td>' + statusBadge + '</td>';
                 printContent += '</tr>';
             });
