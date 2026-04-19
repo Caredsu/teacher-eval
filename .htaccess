@@ -23,10 +23,9 @@
     RewriteCond %{REQUEST_FILENAME} -d
     RewriteRule ^(.*)$ - [L]
     
-    # API routes: /api/teachers -> /api/teachers.php
-    # This handles requests without .php extension
-    RewriteCond %{REQUEST_FILENAME}.php -f
-    RewriteRule ^api/([a-zA-Z_][a-zA-Z0-9_-]*)$ api/$1.php [QSA,L]
+    # NOTE: API files are requested directly with .php extension
+    # API service adds .php automatically: /api/questions -> /api/questions.php
+    # No rewrite rules needed for API endpoints
     
     # Route everything else to index.php
     RewriteRule ^(.*)$ index.php?request=$1 [QSA,L]

@@ -6,16 +6,17 @@
 class APIService {
     constructor(baseUrl = '/teacher-eval') {
         this.baseUrl = baseUrl;
-        // Use /api/ endpoint - .htaccess will route to public_api.php/api/
+        // Request PHP files directly - no .htaccess rewrite needed
         this.apiPath = `${baseUrl}/api`;
     }
 
     /**
-     * Make API request
+     * Make API request - automatically adds .php extension
      */
     async request(method, endpoint, data = null) {
         try {
-            const url = `${this.apiPath}${endpoint}`;
+            // Add .php extension for direct access to API files
+            const url = `${this.apiPath}${endpoint}.php`;
             const options = {
                 method: method,
                 headers: {
@@ -29,6 +30,13 @@ class APIService {
             }
 
             const response = await fetch(url, options);
+            
+            // Handle non-JSON responses (errors)
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                throw new Error(`Expected JSON but got ${contentType || 'unknown'}`);
+            }
+            
             const result = await response.json();
 
             return {
