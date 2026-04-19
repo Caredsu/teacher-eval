@@ -42,13 +42,17 @@ if ($__mongo_instance === null) {
         $uri = DB_HOST;
         
         $options = [
-            'connectTimeoutMS' => 20000,         // Increased for Render cold starts
-            'serverSelectionTimeoutMS' => 20000, // More time to find server
-            'socketTimeoutMS' => 60000,          // Increased from 30000
-            'maxPoolSize' => 10,                 // Reuse connections
-            'minPoolSize' => 2,                  
-            'waitQueueTimeoutMS' => 10000,       // Increased from 5000
-            'retryWrites' => true,              
+            // Connection timeouts - optimized for Atlas
+            'connectTimeoutMS' => 10000,         // Faster initial connection
+            'serverSelectionTimeoutMS' => 5000,  // Quick server discovery
+            'socketTimeoutMS' => 30000,          // Normal socket timeout
+            'maxPoolSize' => 50,                 // INCREASED: More connections available
+            'minPoolSize' => 10,                 // INCREASED: Keep warm connections
+            'maxIdleTimeMS' => 60000,            // Close idle connections after 1min
+            'waitQueueTimeoutMS' => 1000,        // Fail fast if no connection available
+            'heartbeatFrequencyMS' => 10000,     // Monitor server every 10s
+            'retryWrites' => true,
+            'journal' => true,
         ];
         
         $__mongo_instance = new MongoClient($uri, $options);
@@ -95,20 +99,28 @@ if ($__mongo_instance === null) {
         
         // Create indexes for performance
         try {
-            // Evaluations indexes
+            // Evaluations indexes - optimized for common queries
             $evaluations_collection->createIndex(['teacher_id' => 1]);
-            $evaluations_collection->createIndex(['academic_year' => 1]);
-            $evaluations_collection->createIndex(['semester' => 1]);
-            $evaluations_collection->createIndex(['period' => 1]);
             $evaluations_collection->createIndex(['submitted_at' => -1]);
+            
+            // Compound indexes for common query patterns
             $evaluations_collection->createIndex([
                 'teacher_id' => 1,
                 'academic_year' => 1,
                 'semester' => 1
             ]);
+            $evaluations_collection->createIndex([
+                'submitted_at' => -1,
+                'teacher_id' => 1
+            ]);
+            $evaluations_collection->createIndex([
+                'academic_year' => 1,
+                'semester' => 1,
+                'period' => 1
+            ]);
             
-            // Duplicate prevention indexes
-            $evaluations_collection->createIndex(['session_identifier' => 1]);
+            // Duplicate prevention
+            $evaluations_collection->createIndex(['session_identifier' => 1], ['sparse' => true]);
             $evaluations_collection->createIndex([
                 'teacher_id' => 1,
                 'ip_address' => 1,
@@ -118,10 +130,16 @@ if ($__mongo_instance === null) {
             // Teachers indexes
             $teachers_collection->createIndex(['name' => 1]);
             $teachers_collection->createIndex(['email' => 1]);
+            $teachers_collection->createIndex(['department' => 1]);
+            $teachers_collection->createIndex(['status' => 1]);
             
             // Admins indexes
             $admins_collection->createIndex(['username' => 1], ['unique' => true]);
             $admins_collection->createIndex(['email' => 1], ['unique' => true]);
+            
+            // Questions indexes
+            $questions_collection->createIndex(['status' => 1]);
+            $questions_collection->createIndex(['category' => 1]);
         } catch (\Exception $e) {
             // Indexes might already exist, that's ok
         }
@@ -151,4 +169,41 @@ function init_database()
         'db' => $db,
         'collections' => $collections
     ];
+}
+
+/**
+ * Archive old evaluations (older than 90 days) to reduce main collection size
+ * This makes queries on the main collection much faster
+ * Only run this during off-peak hours
+ */
+function archiveOldEvaluations()
+{
+    global $db, $evaluations_collection;
+    
+    try {
+        // Get or create archive collection
+        $archive_collection = $db->selectCollection('evaluations_archive');
+        
+        // Move evaluations older than 90 days to archive
+        $cutoff_date = new MongoDB\BSON\UTCDateTime((time() - 7776000) * 1000); // 90 days ago
+        
+        // Find old evaluations
+        $old_evals = $evaluations_collection->find(['submitted_at' => ['$lt' => $cutoff_date]]);
+        
+        $count = 0;
+        foreach ($old_evals as $eval) {
+            try {
+                $archive_collection->insertOne($eval);
+                $evaluations_collection->deleteOne(['_id' => $eval['_id']]);
+                $count++;
+            } catch (\Exception $e) {
+                // Already archived, skip
+            }
+        }
+        
+        return $count;
+    } catch (\Exception $e) {
+        error_log('Archive error: ' . $e->getMessage());
+        return 0;
+    }
 }

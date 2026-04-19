@@ -251,7 +251,7 @@ if (!empty($evaluations)) {
     <!-- DataTables CSS -->
     <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet">
     <link href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="/teacher-eval/assets/css/dark-theme.css?v=2.0">
+    <link rel="stylesheet" href="<?= ASSETS_URL ?>/css/dark-theme.css?v=2.0">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
     
@@ -574,8 +574,12 @@ if (!empty($evaluations)) {
                                     <button type="submit" class="btn btn-sm" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); color: white; border: none; border-radius: 6px; font-weight: 500; padding: 8px 16px;">
                                         <i class="bi bi-search"></i> Apply Filters
                                     </button>
-                                    <?php if ($filter_teacher_id || $filter_from_date || $filter_to_date || $filter_min_rating || $filter_academic_year || $filter_semester): ?>
-                                        <a href="/teacher-eval/admin/results.php" class="btn btn-sm" style="color: #ffffff; background: #3b4a5c; border: 1px solid #555; border-radius: 6px; margin-left: 5px;">
+                                    <?php if ($filter_teacher_id || $filter_from_date || $filter_to_date || $filter_min_rating || $filter_academic_year || $filter_semester): 
+                                        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+                                        $isProduction = strpos($host, 'localhost') === false && strpos($host, '127.0.0.1') === false;
+                                        $adminBase = $isProduction ? '/admin' : '/teacher-eval/admin';
+                                    ?>
+                                        <a href="<?= $adminBase ?>/results.php" class="btn btn-sm" style="color: #ffffff; background: #3b4a5c; border: 1px solid #555; border-radius: 6px; margin-left: 5px;">
                                             <i class="bi bi-arrow-clockwise"></i> Clear All
                                         </a>
                                     <?php endif; ?>
@@ -742,8 +746,8 @@ if (!empty($evaluations)) {
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
-    <script src="/teacher-eval/assets/js/main.js"></script>
-    <script src="/teacher-eval/assets/js/confirmation.js"></script>
+    <script src="<?= ASSETS_URL ?>/js/main.js"></script>
+    <script src="<?= ASSETS_URL ?>/js/confirmation.js"></script>
     <script>
         // DataTable and filter initialization
         // Chart generation removed - using integrated filter layout instead
@@ -942,7 +946,7 @@ if (!empty($evaluations)) {
                             </head>
                             <body>
                                 <div class="header">
-                                    <img src="/teacher-eval/assets/img/2.png" alt="Logo" class="logo">
+                                    <img src="<?= ASSETS_URL ?>/img/2.png" alt="Logo" class="logo">
                                     <h1>FULLBRIGHT COLLEGE INC</h1>
                                     <p class="subtitle">KM 5 National Highway, San Jose, Puerto Princesa, Philippines, 5300</p>
                                     <p class="subtitle">Email: fullbrightcollege@yahoo.com</p>

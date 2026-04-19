@@ -114,7 +114,13 @@ if (session_status() === PHP_SESSION_NONE) {
 <nav class="navbar navbar-expand-lg navbar-dark navbar-dark-theme">
     <div class="container-fluid">
         <!-- Brand -->
-        <a class="navbar-brand fw-bold" href="/teacher-eval/admin/dashboard.php">
+        <?php 
+            // Get base path dynamically
+            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+            $isProduction = strpos($host, 'localhost') === false && strpos($host, '127.0.0.1') === false;
+            $adminBase = $isProduction ? '/admin' : '/teacher-eval/admin';
+        ?>
+        <a class="navbar-brand fw-bold" href="<?= $adminBase ?>/dashboard.php">
             <img src="<?= ASSETS_URL ?>/img/2.png" alt="Logo" style="height: 40px; margin-right: 8px; vertical-align: middle;"> Teacher Evaluation System
         </a>
         
@@ -126,39 +132,45 @@ if (session_status() === PHP_SESSION_NONE) {
         <!-- Navigation Items -->
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav ms-auto">
+                <?php 
+                    // Get base path dynamically
+                    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+                    $isProduction = strpos($host, 'localhost') === false && strpos($host, '127.0.0.1') === false;
+                    $adminBase = $isProduction ? '/admin' : '/teacher-eval/admin';
+                ?>
                 <li class="nav-item">
-                    <a class="nav-link" href="/teacher-eval/admin/dashboard.php">
+                    <a class="nav-link" href="<?= $adminBase ?>/dashboard.php">
                         <i class="bi bi-graph-up"></i> Dashboard
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="/teacher-eval/admin/teachers.php">
+                    <a class="nav-link" href="<?= $adminBase ?>/teachers.php">
                         <i class="bi bi-people"></i> Teachers
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="/teacher-eval/admin/questions.php">
+                    <a class="nav-link" href="<?= $adminBase ?>/questions.php">
                         <i class="bi bi-question-circle"></i> Questions
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="/teacher-eval/admin/results.php">
+                    <a class="nav-link" href="<?= $adminBase ?>/results.php">
                         <i class="bi bi-bar-chart"></i> Results
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="/teacher-eval/admin/analytics.php">
+                    <a class="nav-link" href="<?= $adminBase ?>/analytics.php">
                         <i class="bi bi-bar-chart"></i> Analytics
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="/teacher-eval/admin/system-feedback.php">
+                    <a class="nav-link" href="<?= $adminBase ?>/system-feedback.php">
                         <i class="bi bi-chat-dots"></i> System Feedback
                     </a>
                 </li>
                 <?php if (isAdmin()): ?>
                 <li class="nav-item">
-                    <a class="nav-link" href="/teacher-eval/admin/users.php">
+                    <a class="nav-link" href="<?= $adminBase ?>/users.php">
                         <i class="bi bi-shield-lock"></i> Users
                     </a>
                 </li>
@@ -226,10 +238,10 @@ if (session_status() === PHP_SESSION_NONE) {
                         <i class="bi bi-person-circle"></i> <?= escapeOutput($_SESSION['admin_username'] ?? 'Admin') ?>
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-                        <li><a class="dropdown-item" href="/teacher-eval/admin/settings.php"><i class="bi bi-gear"></i> Settings</a></li>
+                        <li><a class="dropdown-item" href="<?= $adminBase ?>/settings.php"><i class="bi bi-gear"></i> Settings</a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li>
-                            <form method="POST" action="/teacher-eval/admin/logout.php" class="d-inline">
+                            <form method="POST" action="<?= $adminBase ?>/logout.php" class="d-inline">
                                 <button type="submit" class="dropdown-item"><i class="bi bi-box-arrow-right"></i> Logout</button>
                             </form>
                         </li>

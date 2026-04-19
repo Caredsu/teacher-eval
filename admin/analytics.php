@@ -7,70 +7,133 @@
 require_once '../includes/helpers.php';
 require_once '../config/database.php';
 
+// Add HTTP cache headers - cache for 5 minutes (analytics don't change often)
+header('Cache-Control: public, max-age=300'); // 5 minutes
+header('Pragma: cache');
+
+// Enable gzip compression if available
+if (!ob_get_contents() && extension_loaded('zlib')) {
+    ob_start('ob_gzhandler');
+}
+
 initializeSession();
 requireLogin();
 
 $success_msg = getSuccessMessage();
 $error_msg = getErrorMessage();
 
-// Get all evaluations
-$evaluations = $evaluations_collection->find([])->toArray();
-$teachers = $teachers_collection->find([])->toArray();
-
-// Calculate statistics
-$total_evaluations = count($evaluations);
+// Calculate statistics using MongoDB aggregation instead of loading all data
+$total_evaluations = $evaluations_collection->estimatedDocumentCount();
 
 $teacher_stats = [];
 $overall_ratings = ['1' => 0, '2' => 0, '3' => 0, '4' => 0, '5' => 0];
 $all_ratings = [];
 
-// Process each evaluation
-foreach ($evaluations as $eval) {
-    $teacher_id = (string)$eval['teacher_id'];
-    
-    if (!isset($teacher_stats[$teacher_id])) {
-        $teacher_stats[$teacher_id] = [
-            'ratings' => [],
-            'total_evals' => 0,
-            'avg_rating' => 0
+// Try to get cached results (cache for 15 minutes)
+$cache_key = 'analytics_cache_' . date('Y-m-d-H-i', time() / 900 * 900); // 15min bucket
+$cache_file = sys_get_temp_dir() . '/' . $cache_key . '.json';
+$cache_ttl = 900; // 15 minutes
+
+if (file_exists($cache_file) && (time() - filemtime($cache_file)) < $cache_ttl) {
+    // Use cached results
+    $cached = json_decode(file_get_contents($cache_file), true);
+    $teacher_stats = $cached['teacher_stats'];
+    $overall_ratings = $cached['overall_ratings'];
+    $all_ratings = $cached['all_ratings'];
+} else {
+    // Calculate fresh results using optimized aggregation
+    try {
+        $pipeline = [
+            // Only get last 30 days of evaluations for analytics
+            [
+                '$match' => [
+                    'submitted_at' => [
+                        '$gte' => new MongoDB\BSON\UTCDateTime((time() - 2592000) * 1000)
+                    ]
+                ]
+            ],
+            // Project only fields we need
+            [
+                '$project' => [
+                    'teacher_id' => 1,
+                    'answers' => 1,
+                    'submitted_at' => 1
+                ]
+            ],
+            // Unwind answers array
+            ['$unwind' => '$answers'],
+            // Group by teacher
+            [
+                '$group' => [
+                    '_id' => '$teacher_id',
+                    'total_evals' => ['$sum' => 1],
+                    'avg_rating' => ['$avg' => '$answers.rating'],
+                    'all_ratings' => ['$push' => '$answers.rating']
+                ]
+            ],
+            // Sort by rating descending
+            ['$sort' => ['avg_rating' => -1]],
+            // Limit to top 500 teachers
+            ['$limit' => 500]
         ];
-    }
-    
-    $teacher_stats[$teacher_id]['total_evals']++;
-    
-    // Handle new format: answers array
-    if (isset($eval['answers'])) {
-        // Convert MongoDB BSON array to PHP array
-        $answers_array = iterator_to_array($eval['answers']);
-        foreach ($answers_array as $answer) {
-            $rating = (int)($answer['rating'] ?? 0);
-            if ($rating > 0 && $rating <= 5) {
-                $teacher_stats[$teacher_id]['ratings'][] = $rating;
-                $overall_ratings[$rating]++;
-                $all_ratings[] = $rating;
+        
+        $result = $evaluations_collection->aggregate($pipeline);
+        
+        foreach ($result as $stat) {
+            $teacher_id = (string)$stat['_id'];
+            $ratings = isset($stat['all_ratings']) ? $stat['all_ratings'] : [];
+            
+            // Convert MongoDB BSON array to PHP array
+            if (is_object($ratings)) {
+                $ratings = iterator_to_array($ratings);
             }
-        }
-    }
-    // Handle old format: ratings object (backward compatibility)
-    elseif (isset($eval['ratings'])) {
-        $ratings_array = iterator_to_array($eval['ratings']);
-        foreach ($ratings_array as $rating) {
+        
+        $teacher_stats[$teacher_id] = [
+            'total_evals' => $stat['total_evals'] ?? 0,
+            'avg_rating' => round($stat['avg_rating'] ?? 0, 2),
+            'ratings' => array_map('intval', $ratings)
+        ];
+        
+        // Count overall rating distribution
+        foreach ($ratings as $rating) {
             $rating = (int)$rating;
-            if ($rating > 0 && $rating <= 5) {
-                $teacher_stats[$teacher_id]['ratings'][] = $rating;
+            if ($rating >= 1 && $rating <= 5) {
                 $overall_ratings[$rating]++;
                 $all_ratings[] = $rating;
             }
         }
     }
+    
+    // Cache the results for 15 minutes
+    try {
+        file_put_contents($cache_file, json_encode([
+            'teacher_stats' => $teacher_stats,
+            'overall_ratings' => $overall_ratings,
+            'all_ratings' => $all_ratings
+        ]));
+    } catch (\Exception $e) {
+        // Cache save failed, that's ok - we'll just recalculate next time
+    }
+    
+} catch (\Exception $e) {
+    error_log('Analytics aggregation error: ' . $e->getMessage());
+}
 }
 
-// Calculate averages
-foreach ($teacher_stats as $teacher_id => &$stats) {
-    $stats['avg_rating'] = !empty($stats['ratings']) 
-        ? round(array_sum($stats['ratings']) / count($stats['ratings']), 2) 
-        : 0;
-}
+// Get list of all teachers for reference (with field projection for speed)
+$teachers = $teachers_collection->find(
+    [],
+    [
+        'projection' => [
+            'first_name' => 1,
+            'last_name' => 1,
+            'middle_name' => 1,
+            'department' => 1,
+            'email' => 1
+        ],
+        'limit' => 1000
+    ]
+)->toArray();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -230,7 +293,12 @@ foreach ($teacher_stats as $teacher_id => &$stats) {
                 <p class="text-muted">View evaluation analytics and insights</p>
             </div>
             <div class="col-md-6 text-end">
-                <a href="/teacher-eval/admin/export-evaluations.php" class="btn btn-info">
+                <?php
+                    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+                    $isProduction = strpos($host, 'localhost') === false && strpos($host, '127.0.0.1') === false;
+                    $adminBase = $isProduction ? '/admin' : '/teacher-eval/admin';
+                ?>
+                <a href="<?= $adminBase ?>/export-evaluations.php" class="btn btn-info">
                     <i class="bi bi-download"></i> Export CSV
                 </a>
             </div>

@@ -6,6 +6,17 @@
 require_once '../includes/helpers.php';
 require_once '../config/database.php';
 
+// Add HTTP cache headers for static dashboard data (3 minutes)
+if (!isset($_GET['get_notifications']) && !isset($_GET['get_notif_count']) && !isset($_GET['clear_notifications']) && !isset($_GET['check_new'])) {
+    header('Cache-Control: public, max-age=180'); // 3 minutes
+    header('Pragma: cache');
+}
+
+// Enable gzip compression if available
+if (!ob_get_contents() && extension_loaded('zlib')) {
+    ob_start('ob_gzhandler');
+}
+
 initializeSession();
 requireLogin();
 
@@ -13,7 +24,8 @@ requireLogin();
 if (isset($_GET['get_notif_count'])) {
     header('Content-Type: application/json');
     try {
-        $total_count = $evaluations_collection->countDocuments();
+        // Use estimated count for speed
+        $total_count = $evaluations_collection->estimatedDocumentCount();
         echo json_encode(['count' => $total_count]);
     } catch (\Exception $e) {
         echo json_encode(['count' => 0]);
@@ -25,8 +37,8 @@ if (isset($_GET['get_notif_count'])) {
 if (isset($_GET['clear_notifications'])) {
     header('Content-Type: application/json');
     try {
-        // Get current total count and save it as the baseline
-        $current_count = $evaluations_collection->countDocuments();
+        // Get current estimated count and save it as the baseline
+        $current_count = $evaluations_collection->estimatedDocumentCount();
         $_SESSION['notifications_cleared_at'] = (string)$current_count;
         echo json_encode(['success' => true]);
     } catch (\Exception $e) {
@@ -39,7 +51,7 @@ if (isset($_GET['clear_notifications'])) {
 if (isset($_GET['get_notifications'])) {
     header('Content-Type: application/json');
     try {
-        $total_count = $evaluations_collection->countDocuments();
+        $total_count = $evaluations_collection->estimatedDocumentCount();
         
         // Get cleared baseline from session
         $cleared_baseline = isset($_SESSION['notifications_cleared_at']) 
@@ -49,31 +61,62 @@ if (isset($_GET['get_notifications'])) {
         // Calculate "new" notifications since last clear (for badge)
         $new_count = max(0, $total_count - $cleared_baseline);
         
-        // But ALWAYS show last 5 evaluations in the list
+        // But ALWAYS show last 5 evaluations in the list (with field projection)
         $recent_evals = $evaluations_collection->find(
             [],
-            ['sort' => ['submitted_at' => -1], 'limit' => 5]
+            [
+                'projection' => ['teacher_id' => 1, 'submitted_at' => 1],
+                'sort' => ['submitted_at' => -1],
+                'limit' => 5
+            ]
         );
         
+        // Collect teacher IDs we need
+        $needed_teacher_ids = [];
         $notifications = [];
+        foreach ($recent_evals as $eval) {
+            $teacher_id = $eval['teacher_id'] ?? null;
+            if ($teacher_id) {
+                $needed_teacher_ids[(string)$teacher_id] = true;
+            }
+        }
+        
+        // Fetch all needed teachers in one query with field projection
+        $teachers_by_id = [];
+        if (count($needed_teacher_ids) > 0) {
+            $teacher_ids_to_fetch = array_map(function($id) {
+                return ctype_xdigit($id) && strlen($id) === 24 
+                    ? new MongoDB\BSON\ObjectId($id) 
+                    : $id;
+            }, array_keys($needed_teacher_ids));
+            
+            $found_teachers = $teachers_collection->find(
+                ['_id' => ['$in' => $teacher_ids_to_fetch]],
+                ['projection' => ['name' => 1, 'first_name' => 1, 'last_name' => 1]]
+            );
+            foreach ($found_teachers as $teacher) {
+                $teachers_by_id[(string)$teacher['_id']] = $teacher;
+            }
+        }
+        
+        // Re-query recent evals for display (since we iterated through the cursor)
+        $recent_evals = $evaluations_collection->find(
+            [],
+            [
+                'projection' => ['teacher_id' => 1, 'submitted_at' => 1],
+                'sort' => ['submitted_at' => -1],
+                'limit' => 5
+            ]
+        );
+        
         foreach ($recent_evals as $eval) {
             $teacher_name = 'Anonymous';
             $teacher_id = $eval['teacher_id'] ?? null;
             
-            if ($teacher_id) {
-                try {
-                    if (strlen($teacher_id) === 24 && ctype_xdigit($teacher_id)) {
-                        $teacher = $teachers_collection->findOne(['_id' => new MongoDB\BSON\ObjectId($teacher_id)]);
-                    } else {
-                        $teacher = $teachers_collection->findOne(['_id' => $teacher_id]);
-                    }
-                    
-                    if ($teacher) {
-                        $teacher_name = $teacher['name'] ?? 'Anonymous';
-                    }
-                } catch (\Exception $e) {
-                    $teacher_name = 'Anonymous';
-                }
+            // Look up teacher from cache instead of querying
+            if ($teacher_id && isset($teachers_by_id[(string)$teacher_id])) {
+                $teacher = $teachers_by_id[(string)$teacher_id];
+                $teacher_name = $teacher['name'] ?? 'Anonymous';
             }
             
             // Format time
@@ -131,7 +174,7 @@ if (isset($_GET['get_notifications'])) {
 if (isset($_GET['get_notif_count'])) {
     header('Content-Type: application/json');
     try {
-        $total_count = $evaluations_collection->countDocuments();
+        $total_count = $evaluations_collection->estimatedDocumentCount();
         echo json_encode(['count' => $total_count]);
     } catch (\Exception $e) {
         echo json_encode(['count' => 0]);
@@ -180,61 +223,64 @@ $error = null;
 
 // Get dashboard statistics
 try {
-    $total_teachers = $teachers_collection->countDocuments();
-    $total_questions = $questions_collection->countDocuments(['status' => 'active']);
-    $total_evaluations = $evaluations_collection->countDocuments();
+    // Use estimatedDocumentCount() instead of countDocuments() for speed
+    // This is approximate but MUCH faster for large collections
+    $total_teachers = $teachers_collection->estimatedDocumentCount();
+    $total_questions = $questions_collection->countDocuments(['status' => 'active']); // Keep exact for questions (usually small)
+    $total_evaluations = $evaluations_collection->estimatedDocumentCount();
     
-    // Get recent evaluations with teacher info
+    // Get recent evaluations with teacher info (with field projection)
     $recent_evaluations = $evaluations_collection->find(
         [],
-        ['sort' => ['submitted_at' => -1], 'limit' => 10]
+        [
+            'projection' => ['teacher_id' => 1, 'submitted_at' => 1],
+            'sort' => ['submitted_at' => -1],
+            'limit' => 10
+        ]
     );
     
-    // Get teacher rating averages
-    $teacher_ratings = [];
-    $teachers = $teachers_collection->find();
-    
-    foreach ($teachers as $teacher) {
-        $teacher_id = (string) $teacher['_id'];
-        
-        // Debug: Count evaluations for this teacher
-        $eval_count = $evaluations_collection->countDocuments(['teacher_id' => $teacher_id]);
-        
-        $avg_rating = $evaluations_collection->aggregate([
-            [
-                '$match' => [
-                    '$or' => [
-                        ['teacher_id' => $teacher_id],
-                        ['teacher_id' => new MongoDB\BSON\ObjectId($teacher_id)]
-                    ]
-                ]
-            ],
-            [
-                '$unwind' => '$answers'
-            ],
-            [
-                '$group' => [
-                    '_id' => null,
-                    'avg_rating' => ['$avg' => '$answers.rating']
-                ]
-            ]
-        ]);
-        
-        $avg_rating_value = 0;
-        foreach ($avg_rating as $result) {
-            $avg_rating_value = round($result['avg_rating'], 2);
+    // Extract teacher IDs from recent evaluations
+    $needed_teacher_ids = [];
+    foreach ($recent_evaluations as $eval) {
+        $teacher_id = $eval['teacher_id'] ?? null;
+        if ($teacher_id) {
+            $needed_teacher_ids[(string)$teacher_id] = true;
         }
-        
-        // Debug logging
-        error_log("Teacher {$teacher_id}: {$eval_count} evaluations, avg_rating: {$avg_rating_value}");
-        
-        $full_name = trim(($teacher['first_name'] ?? '') . ' ' . ($teacher['middle_name'] ?? '') . ' ' . ($teacher['last_name'] ?? ''));
-        
-        $teacher_ratings[] = [
-            'name' => !empty($full_name) ? $full_name : 'Anonymous',
-            'avg_rating' => $avg_rating_value
-        ];
     }
+    
+    // Fetch only the teachers we need (with field projection)
+    $teachers_cache = [];
+    if (count($needed_teacher_ids) > 0) {
+        $teacher_ids_to_fetch = array_map(function($id) {
+            return ctype_xdigit($id) && strlen($id) === 24 
+                ? new MongoDB\BSON\ObjectId($id) 
+                : $id;
+        }, array_keys($needed_teacher_ids));
+        
+        $teachers_found = $teachers_collection->find(
+            ['_id' => ['$in' => $teacher_ids_to_fetch]],
+            ['projection' => ['first_name' => 1, 'last_name' => 1, 'middle_name' => 1, 'name' => 1]]
+        );
+        foreach ($teachers_found as $teacher) {
+            $teacher_id_str = (string)$teacher['_id'];
+            $teachers_cache[$teacher_id_str] = $teacher;
+        }
+    }
+    
+    // Reset the cursor for display - get again since we iterated it above (with field projection)
+    $recent_evaluations = $evaluations_collection->find(
+        [],
+        [
+            'projection' => ['teacher_id' => 1, 'submitted_at' => 1],
+            'sort' => ['submitted_at' => -1],
+            'limit' => 10
+        ]
+    );
+    
+    // TOP PERFORMERS: Load async via JavaScript to not block page load
+    // For now, just use a simple placeholder
+    $teacher_ratings = [];
+    $top_performers = [];
     
     // Calculate key metrics
     $completion_rate = $total_teachers > 0 ? round(($total_evaluations / $total_teachers) * 100, 1) : 0;
@@ -680,21 +726,15 @@ try {
                                     foreach ($recent_evaluations as $eval) {
                                         if ($count >= 5) break;
                                         
-                                        // Handle teacher_id - it might be a string or ObjectId
+                                        // Handle teacher_id - use cached teachers
                                         $teacher_name = 'Anonymous';
                                         $teacher_id = $eval['teacher_id'] ?? null;
                                         
                                         if ($teacher_id) {
-                                            $teacher = null;
-                                            // Try as string first
-                                            if (isValidObjectId((string)$teacher_id)) {
-                                                $teacher = $teachers_collection->findOne(['_id' => new MongoDB\BSON\ObjectId((string)$teacher_id)]);
-                                            } else {
-                                                // Try as direct string match
-                                                $teacher = $teachers_collection->findOne(['_id' => $teacher_id]);
-                                            }
-                                            
-                                            if ($teacher) {
+                                            // Look up in cache instead of querying database
+                                            $teacher_id_str = (string)$teacher_id;
+                                            if (isset($teachers_cache[$teacher_id_str])) {
+                                                $teacher = $teachers_cache[$teacher_id_str];
                                                 $teacher_array = iterator_to_array($teacher);
                                                 $full_name = trim(($teacher_array['first_name'] ?? '') . ' ' . ($teacher_array['middle_name'] ?? '') . ' ' . ($teacher_array['last_name'] ?? ''));
                                                 $teacher_name = !empty($full_name) ? htmlspecialchars($full_name, ENT_QUOTES) : 'Anonymous';

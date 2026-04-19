@@ -15,70 +15,108 @@ require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/helpers.php';
 
+// Add HTTP cache headers (3 minutes)
+header('Cache-Control: public, max-age=180'); // 3 minutes
+header('Pragma: cache');
+
+// Enable gzip compression if available
+if (!ob_get_contents() && extension_loaded('zlib')) {
+    ob_start('ob_gzhandler');
+}
+
 use MongoDB\BSON\ObjectId;
 
 $db = Database::getInstance();
 $teachersCollection = $db->getCollection('teachers');
 $evaluationsCollection = $db->getCollection('evaluations');
 
-// Get all teachers
-$teachers = $teachersCollection->find([])->toArray();
-
-// Get evaluation statistics for each teacher
+// Use aggregation pipeline instead of N+1 queries!
 $teacherStats = [];
-foreach ($teachers as $teacher) {
-    $teacherId = (string)$teacher['_id'];
+try {
+    // Optimized pipeline: project fields early, limit scope, then aggregate
+    $pipeline = [
+        // Project only fields we need
+        [
+            '$project' => [
+                'teacher_id' => 1,
+                'ratings' => 1
+            ]
+        ],
+        // Group by teacher
+        [
+            '$group' => [
+                '_id' => '$teacher_id',
+                'count' => ['$sum' => 1],
+                'avgTeaching' => ['$avg' => '$ratings.teaching'],
+                'avgCommunication' => ['$avg' => '$ratings.communication'],
+                'avgKnowledge' => ['$avg' => '$ratings.knowledge'],
+            ]
+        ],
+        // Sort by count descending
+        ['$sort' => ['count' => -1]],
+        // Limit to top 100 teachers
+        ['$limit' => 100]
+    ];
     
-    // Try both string and ObjectId matching
-    $evals = $evaluationsCollection->find([
-        '$or' => [
-            ['teacher_id' => $teacherId],
-            ['teacher_id' => new ObjectId($teacherId)]
+    $statsResult = $evaluationsCollection->aggregate($pipeline);
+    foreach ($statsResult as $stat) {
+        $teacherId = (string)$stat['_id'];
+        $teaching = $stat['avgTeaching'] ?? 0;
+        $communication = $stat['avgCommunication'] ?? 0;
+        $knowledge = $stat['avgKnowledge'] ?? 0;
+        
+        $teacherStats[$teacherId] = [
+            'count' => $stat['count'],
+            'avgTeaching' => round($teaching, 2),
+            'avgCommunication' => round($communication, 2),
+            'avgKnowledge' => round($knowledge, 2),
+            'overallAvg' => round(($teaching + $communication + $knowledge) / 3, 2)
+        ];
+    }
+} catch (\Exception $e) {
+    error_log('Aggregation error: ' . $e->getMessage());
+}
+
+// Get only teachers that have evaluations (limit to 100 for performance, with field projection)
+$teachers = $teachersCollection->find(
+    [],
+    [
+        'projection' => [
+            'first_name' => 1,
+            'last_name' => 1,
+            'middle_name' => 1,
+            'department' => 1,
+            'email' => 1,
+            'status' => 1
+        ],
+        'limit' => 100
+    ]
+)->toArray();
+
+// Calculate overall statistics - use aggregation instead of loading all data
+$totalEvaluations = $evaluationsCollection->estimatedDocumentCount();
+$avgOverallRating = 0;
+try {
+    $statsResult = $evaluationsCollection->aggregate([
+        [
+            '$group' => [
+                '_id' => null,
+                'avgTeaching' => ['$avg' => '$ratings.teaching'],
+                'avgCommunication' => ['$avg' => '$ratings.communication'],
+                'avgKnowledge' => ['$avg' => '$ratings.knowledge'],
+            ]
         ]
     ])->toArray();
     
-    $count = count($evals);
-    $avgTeaching = 0;
-    $avgCommunication = 0;
-    $avgKnowledge = 0;
-    
-    if ($count > 0) {
-        $totalTeaching = 0;
-        $totalCommunication = 0;
-        $totalKnowledge = 0;
-        
-        foreach ($evals as $eval) {
-            $ratings = $eval['ratings'] ?? [];
-            $totalTeaching += $ratings['teaching'] ?? 0;
-            $totalCommunication += $ratings['communication'] ?? 0;
-            $totalKnowledge += $ratings['knowledge'] ?? 0;
-        }
-        
-        $avgTeaching = round($totalTeaching / $count, 2);
-        $avgCommunication = round($totalCommunication / $count, 2);
-        $avgKnowledge = round($totalKnowledge / $count, 2);
+    if (count($statsResult) > 0) {
+        $stats = $statsResult[0];
+        $teaching = $stats['avgTeaching'] ?? 0;
+        $communication = $stats['avgCommunication'] ?? 0;
+        $knowledge = $stats['avgKnowledge'] ?? 0;
+        $avgOverallRating = round(($teaching + $communication + $knowledge) / 3, 2);
     }
-    
-    $teacherStats[$teacherId] = [
-        'count' => $count,
-        'avgTeaching' => $avgTeaching,
-        'avgCommunication' => $avgCommunication,
-        'avgKnowledge' => $avgKnowledge,
-        'overallAvg' => round(($avgTeaching + $avgCommunication + $avgKnowledge) / 3, 2)
-    ];
-}
-
-// Calculate overall statistics
-$totalEvaluations = $evaluationsCollection->countDocuments();
-$allEvals = $evaluationsCollection->find([])->toArray();
-$avgOverallRating = 0;
-if ($totalEvaluations > 0) {
-    $ratingSum = 0;
-    foreach ($allEvals as $eval) {
-        $ratings = $eval['ratings'] ?? [];
-        $ratingSum += ($ratings['teaching'] ?? 0) + ($ratings['communication'] ?? 0) + ($ratings['knowledge'] ?? 0);
-    }
-    $avgOverallRating = round($ratingSum / ($totalEvaluations * 3), 2);
+} catch (\Exception $e) {
+    error_log('Overall stats aggregation error: ' . $e->getMessage());
 }
 
 // Get top-rated teachers (by overall average)
