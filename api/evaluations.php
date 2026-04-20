@@ -5,6 +5,9 @@
  * GET /api/evaluations/:teacher_id - Get evaluations for a teacher (requires admin/staff)
  */
 
+// Make global request path available (set by index.php router)
+global $ORIGINAL_REQUEST_PATH;
+
 // Handle CORS preflight requests FIRST
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');

@@ -400,184 +400,16 @@ try {
     <link rel="stylesheet" href="<?= ASSETS_URL ?>/css/dark-theme.css?v=2.0">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     
+    <!-- Global and Component Styles -->
+    <link rel="stylesheet" href="<?= ASSETS_URL ?>/css/global.css">
+    <link rel="stylesheet" href="<?= ASSETS_URL ?>/css/components.css">
+    <link rel="stylesheet" href="<?= ASSETS_URL ?>/css/pages/dashboard.css">
+    
     <!-- Async load non-critical styles -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" media="print" onload="this.media='all'">
     
     <!-- Defer non-critical scripts -->
     <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
-    <style>
-        /* Light Modern Theme */
-        body {
-            background: #f8fafc !important;
-            color: #000000;
-        }
-        
-        .card {
-            background: #ffffff !important;
-            border-color: #e2e8f0 !important;
-            color: #000000;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-        }
-        
-        .card-header {
-            background: #f1f5f9 !important;
-            border-color: #e2e8f0 !important;
-            color: #000000 !important;
-        }
-        
-        .card-body {
-            color: #000000;
-        }
-        
-        .table {
-            color: #000000;
-        }
-        
-        .table-light {
-            background: #f1f5f9 !important;
-        }
-        
-        .table-hover tbody tr,
-        .table-hover tbody tr * {
-            animation: none !important;
-            -webkit-animation: none !important;
-            -moz-animation: none !important;
-            -o-animation: none !important;
-            transition: none !important;
-            -webkit-transition: none !important;
-            -moz-transition: none !important;
-            -o-transition: none !important;
-            transform: none !important;
-            -webkit-transform: none !important;
-            -moz-transform: none !important;
-            -o-transform: none !important;
-            animation-play-state: paused !important;
-            -webkit-animation-play-state: paused !important;
-        }
-        
-        .table-hover tbody tr:hover {
-            background: #f1f5f9 !important;
-            animation: none !important;
-            transition: none !important;
-            animation-play-state: paused !important;
-        }
-        
-        .table .thead-light th {
-            background: #f1f5f9 !important;
-            color: #1e293b !important;
-            border-color: #e2e8f0 !important;
-        }
-        
-        .text-muted {
-            color: #000000 !important;
-        }
-        
-        .btn-primary {
-            background: #8b5cf6 !important;
-            border-color: #8b5cf6 !important;
-            color: #fff !important;
-        }
-        
-        .btn-primary:hover {
-            background: #7c3aed !important;
-        }
-        
-        .btn-info {
-            background: #8b5cf6 !important;
-            border-color: #8b5cf6 !important;
-            color: #fff !important;
-        }
-        
-        .btn-outline-primary {
-            color: #8b5cf6 !important;
-            border-color: #8b5cf6 !important;
-        }
-        
-        .btn-outline-primary:hover {
-            background: #8b5cf6 !important;
-            color: #fff !important;
-        }
-        
-        .badge {
-            background: #8b5cf6 !important;
-            color: #fff !important;
-        }
-        
-        h1, h2, h3, h4, h5, h6 {
-            color: #000000 !important;
-        }
-        
-        /* Skeleton Loading */
-        .skeleton {
-            background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
-            background-size: 200% 100%;
-            animation: skeleton-loading 1.5s infinite;
-        }
-
-        @keyframes skeleton-loading {
-            0% {
-                background-position: 200% 0;
-            }
-            100% {
-                background-position: -200% 0;
-            }
-        }
-
-        .skeleton-card {
-            border: none;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            background: #f1f5f9 !important;
-        }
-
-        .skeleton-text {
-            height: 20px;
-            margin-bottom: 8px;
-            border-radius: 4px;
-        }
-
-        .skeleton-title {
-            height: 28px;
-            margin-bottom: 16px;
-            border-radius: 4px;
-            width: 60%;
-        }
-
-        .skeleton-chart {
-            height: 350px;
-            border-radius: 8px;
-        }
-
-        .skeleton-table-row {
-            height: 50px;
-            margin-bottom: 8px;
-            border-radius: 4px;
-        }
-
-        .content-loader {
-            display: none;
-            background: #f8fafc;
-            min-height: 100vh;
-        }
-
-        .content-loader.active {
-            display: block;
-        }
-
-        .skeleton-loader {
-            display: none;
-            background: #f8fafc;
-        }
-
-        .skeleton-loader.loading {
-            display: block;
-        }
-
-        /* Position toast notification lower to avoid navbar */
-        .toast-notification-custom {
-            top: 100px !important;
-            right: 20px !important;
-        }
-    </style>
 </head>
 <body>
     <!-- Navbar -->
@@ -897,36 +729,27 @@ try {
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
     <script src="<?= ASSETS_URL ?>/js/api-service.js?v=2"></script>
     <script src="<?= ASSETS_URL ?>/js/main.js"></script>
+    <script src="<?= ASSETS_URL ?>/js/global.js"></script>
     <script src="<?= ASSETS_URL ?>/js/confirmation.js"></script>
     <script src="<?= ASSETS_URL ?>/js/export-pdf.js"></script>
+    <script src="<?= ASSETS_URL ?>/js/pages/dashboard.js"></script>
+    
+    <!-- Show Login Success Toast at Top Right -->
     <script>
-        // Show skeleton only when logging in
         document.addEventListener('DOMContentLoaded', function() {
-            const skeletonLoader = document.querySelector('.skeleton-loader');
-            const showSkeleton = skeletonLoader && skeletonLoader.getAttribute('data-show-skeleton') === 'true';
-            
-            if (showSkeleton && skeletonLoader.classList.contains('loading')) {
-                // Hide skeleton after 500ms for visual effect
+            if (<?php echo $show_skeleton ? 'true' : 'false'; ?>) {
                 setTimeout(function() {
-                    skeletonLoader.classList.remove('loading');
-                }, 500);
-            }
-            
-            // Show login success toast notification
-            if (showSkeleton) {
-                setTimeout(function() {
-                    // Use SweetAlert2 for login success notification
                     Swal.fire({
                         position: 'top-end',
                         icon: 'success',
-                        title: 'Welcome back!',
-                        html: '<strong><?= escapeOutput($_SESSION['admin_username'] ?? 'Admin') ?></strong><br>You have successfully logged in',
+                        title: 'Login Successful',
+                        text: 'Welcome back!',
                         toast: true,
                         showConfirmButton: false,
-                        timer: 4000,
+                        timer: 3000,
                         timerProgressBar: true,
                         customClass: {
-                            container: 'toast-notification-custom'
+                            container: 'login-toast-container'
                         },
                         didOpen: (toast) => {
                             toast.addEventListener('mouseenter', Swal.stopTimer)
@@ -936,175 +759,16 @@ try {
                 }, 300);
             }
         });
-
-        // Also hide skeleton immediately if page is fully loaded already
-        if (document.readyState === 'complete') {
-            const skeletonLoader = document.querySelector('.skeleton-loader');
-            if (skeletonLoader && skeletonLoader.getAttribute('data-show-skeleton') === 'true') {
-                skeletonLoader.classList.remove('loading');
-            }
-        }
     </script>
     
-    <script>
-        // Polling for new evaluations with toast notifications
-        let lastEvalId = null;
-        let isFirstLoad = true;
-        
-        function showToastNotification(message) {
-            // Create light theme toast notification HTML
-            const toastHtml = `
-                <div class="toast-notification" style="
-                    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-                    color: #000000;
-                    padding: 16px 20px;
-                    border-radius: 12px;
-                    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(139, 92, 246, 0.1);
-                    min-width: 320px;
-                    font-weight: 500;
-                    animation: slideInToast 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-                    margin-top: 10px;
-                    border-left: 4px solid #8b5cf6;
-                    display: flex;
-                    align-items: flex-start;
-                    gap: 12px;
-                ">
-                    <div style="
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        width: 40px;
-                        height: 40px;
-                        background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(139, 92, 246, 0.05) 100%);
-                        border-radius: 50%;
-                        flex-shrink: 0;
-                        border: 2px solid #8b5cf6;
-                    ">
-                        <i class="bi bi-check-circle" style="font-size: 22px; color: #8b5cf6;"></i>
-                    </div>
-                    <div style="flex: 1;">
-                        <div style="font-weight: 600; font-size: 14px; margin-bottom: 2px; color: #000000;">New Evaluation</div>
-                        <div style="font-weight: 400; font-size: 13px; opacity: 0.85; color: #1a1a1a;">${message}</div>
-                    </div>
-                </div>
-                <style>
-                    @keyframes slideInToast {
-                        from {
-                            transform: translateX(400px);
-                            opacity: 0;
-                        }
-                        to {
-                            transform: translateX(0);
-                            opacity: 1;
-                        }
-                    }
-                    
-                    @keyframes slideOutToast {
-                        from {
-                            transform: translateX(0);
-                            opacity: 1;
-                        }
-                        to {
-                            transform: translateX(400px);
-                            opacity: 0;
-                        }
-                    }
-                </style>
-            `;
-            
-            const container = document.getElementById('toast-container');
-            if (container) {
-                container.insertAdjacentHTML('beforeend', toastHtml);
-                
-                // Remove after 5 seconds
-                setTimeout(() => {
-                    const toast = container.querySelector('.toast-notification');
-                    if (toast) {
-                        toast.style.animation = 'slideOutToast 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards';
-                        setTimeout(() => toast.remove(), 400);
-                    }
-                }, 5000);
-            }
+    <!-- Toast Positioning Style -->
+    <style>
+        .login-toast-container {
+            top: 80px !important;
+            right: 20px !important;
+            z-index: 1050 !important;
         }
-        
-        function checkNewEvaluations() {
-            const url = '/teacher-eval/admin/dashboard.php?check_new=1&lastId=' + (lastEvalId || '');
-            console.log('🔍 Poll check - URL:', url, 'isFirstLoad:', isFirstLoad, 'lastEvalId:', lastEvalId);
-            
-            fetch(url)
-                .then(response => response.json())
-                .then(data => {
-                    console.log('📡 Poll response:', data);
-                    
-                    if (data.latest_id) {
-                        console.log('✓ Latest ID exists:', data.latest_id);
-                        console.log('  has_new:', data.has_new, 'isFirstLoad:', isFirstLoad);
-                        
-                        if (!isFirstLoad && data.has_new) {
-                            // New evaluation detected!
-                            console.log('🎉 NEW EVALUATION DETECTED - SHOWING NOTIFICATION!');
-                            showToastNotification('📊 New evaluation submitted!');
-                            
-                            // Update notification badge if it exists
-                            const notifBadge = document.getElementById('notif-badge');
-                            if (notifBadge) {
-                                let currentCount = parseInt(notifBadge.textContent) || 0;
-                                notifBadge.textContent = currentCount + 1;
-                                notifBadge.style.display = 'inline-block';
-                            }
-                            
-                            // Reload after 5.5 seconds so user can see the toast fully (toast lasts 5 seconds)
-                            setTimeout(() => {
-                                console.log('🔄 Reloading page...');
-                                location.reload();
-                            }, 5500);
-                        } else if (isFirstLoad) {
-                            console.log('📌 First load - baseline set, ready for new evaluations');
-                            isFirstLoad = false;
-                        }
-                        lastEvalId = data.latest_id;
-                    } else {
-                        console.log('⚠ No latest ID found');
-                    }
-                })
-                .catch(error => console.log('❌ Poll check failed:', error.message));
-        }
-        
-        // Start polling when page loads
-        console.log('🚀 Starting evaluation polling...');
-        checkNewEvaluations(); // First check to set baseline
-        setInterval(checkNewEvaluations, 5000); // Check every 5 seconds (faster detection)
-    </script>
-    <script>
-        // [Removed: Teacher Ratings Chart - Optimized dashboard layout]
-        
-        // Evaluation Status Pie Chart
-        const statusCtx = document.getElementById('evaluationStatusChart').getContext('2d');
-        new Chart(statusCtx, {
-            type: 'doughnut',
-            data: {
-                labels: ['Completed', 'Pending'],
-                datasets: [{
-                    data: [<?= $total_evaluations ?>, Math.max(0, <?= $total_teachers ?> - <?= $total_evaluations ?>)],
-                    backgroundColor: ['#00d4ff', '#ffa500']
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: { labels: { color: '#a0a9b8' } }
-                }
-            }
-        });
-        
-        // Initialize notification badge with recent evaluations count
-        const notifBadge = document.getElementById('notif-badge');
-        if (notifBadge && <?= $total_evaluations ?> > 0) {
-            // Show badge if there are evaluations
-            notifBadge.textContent = Math.min(<?= $total_evaluations ?>, 9) + (<?= $total_evaluations ?> > 9 ? '+' : '');
-            notifBadge.style.display = 'inline-block';
-        }
-    </script>
+    </style>
     
     <!-- Footer -->
     <?php include '../includes/footer.php'; ?>

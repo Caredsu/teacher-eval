@@ -7,10 +7,17 @@
  * DELETE /api/teachers/:id - Delete teacher (requires superadmin)
  */
 
+// Start session FIRST before any headers
+session_start();
+
+// Make global request path available (set by index.php router)
+global $ORIGINAL_REQUEST_PATH;
+
 // Handle CORS preflight requests FIRST
-header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Origin: ' . ($_SERVER['HTTP_ORIGIN'] ?? '*'));
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
+header('Access-Control-Allow-Credentials: true');
 header('Access-Control-Max-Age: 86400');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -26,35 +33,84 @@ setJsonHeader();
 
 $method = getRequestMethod();
 
+// Debug: Log the request details
+error_log("Teachers API: Method=$method, Path=" . ($_SERVER['REQUEST_URI'] ?? 'unknown'));
+
 try {
     if ($method === 'GET') {
-        // Get all teachers - PUBLIC ACCESS (with field projection - 75% faster)
+        // Check if requesting a specific teacher by ID
+        // Try to get ID from query parameter first, then from REQUEST_URI as fallback
+        $id = $_GET['id'] ?? '';
+        
+        if (!$id) {
+            // Fallback: try to extract from REQUEST_URI using regex
+            $requestUri = $_SERVER['REQUEST_URI'] ?? '';
+            if (preg_match('/\/teachers\/([a-f0-9]{24})/i', $requestUri, $matches)) {
+                $id = $matches[1];
+            }
+        }
+        
+        if ($id) {
+            // Get specific teacher by ID
+            $objectId = stringToObjectId($id);
+            if (!$objectId) {
+                sendError('Invalid teacher ID format', 400);
+            }
+            
+            try {
+                $teacher = $teachers_collection->findOne(['_id' => $objectId]);
+                if (!$teacher) {
+                    sendError('Teacher not found', 404);
+                }
+                
+                sendSuccess([
+                    'id' => objectIdToString($teacher['_id']),
+                    'first_name' => $teacher['first_name'] ?? '',
+                    'last_name' => $teacher['last_name'] ?? '',
+                    'middle_name' => $teacher['middle_name'] ?? '',
+                    'department' => $teacher['department'] ?? '',
+                    'email' => $teacher['email'] ?? '',
+                    'status' => $teacher['status'] ?? 'active',
+                    'picture' => $teacher['picture'] ?? null,
+                    'created_at' => isset($teacher['created_at']) ? $teacher['created_at']->toDateTime()->format('Y-m-d H:i:s') : '',
+                    'updated_at' => isset($teacher['updated_at']) ? $teacher['updated_at']->toDateTime()->format('Y-m-d H:i:s') : '',
+                    'updated_by' => $teacher['updated_by'] ?? 'system'
+                ], 'Teacher retrieved successfully', 200);
+            } catch (\Exception $e) {
+                sendError('Error retrieving teacher: ' . $e->getMessage(), 500);
+            }
+        }
+        
+        // Get all teachers - PUBLIC ACCESS (with field projection)
+        try {
+            $teachers = $teachers_collection->find([], [
+                'projection' => [
+                    'first_name' => 1, 'last_name' => 1, 'middle_name' => 1,
+                    'department' => 1, 'email' => 1, 'status' => 1, 'picture' => 1,
+                    'created_at' => 1, 'updated_at' => 1, 'updated_by' => 1
+                ]
+            ])->toArray();
 
-        $teachers = $teachers_collection->find([], [
-            'projection' => [
-                'first_name' => 1, 'last_name' => 1, 'middle_name' => 1,
-                'department' => 1, 'email' => 1, 'status' => 1, 'picture' => 1,
-                'created_at' => 1, 'updated_at' => 1, 'updated_by' => 1
-            ]
-        ])->toArray();
+            $formattedTeachers = array_map(function($teacher) {
+                return [
+                    'id' => objectIdToString($teacher['_id']),
+                    'first_name' => $teacher['first_name'] ?? '',
+                    'last_name' => $teacher['last_name'] ?? '',
+                    'middle_name' => $teacher['middle_name'] ?? '',
+                    'department' => $teacher['department'] ?? '',
+                    'email' => $teacher['email'] ?? '',
+                    'status' => $teacher['status'] ?? 'active',
+                    'picture' => $teacher['picture'] ?? null,
+                    'created_at' => isset($teacher['created_at']) ? $teacher['created_at']->toDateTime()->format('Y-m-d H:i:s') : '',
+                    'updated_at' => isset($teacher['updated_at']) ? $teacher['updated_at']->toDateTime()->format('Y-m-d H:i:s') : '',
+                    'updated_by' => $teacher['updated_by'] ?? 'system'
+                ];
+            }, $teachers);
 
-        $formattedTeachers = array_map(function($teacher) {
-            return [
-                'id' => objectIdToString($teacher['_id']),
-                'first_name' => $teacher['first_name'] ?? '',
-                'last_name' => $teacher['last_name'] ?? '',
-                'middle_name' => $teacher['middle_name'] ?? '',
-                'department' => $teacher['department'] ?? '',
-                'email' => $teacher['email'] ?? '',
-                'status' => $teacher['status'] ?? 'active',
-                'picture' => $teacher['picture'] ?? null,
-                'created_at' => isset($teacher['created_at']) ? $teacher['created_at']->toDateTime()->format('Y-m-d H:i:s') : '',
-                'updated_at' => isset($teacher['updated_at']) ? $teacher['updated_at']->toDateTime()->format('Y-m-d H:i:s') : '',
-                'updated_by' => $teacher['updated_by'] ?? 'system'
-            ];
-        }, $teachers);
-
-        sendSuccess($formattedTeachers, 'Teachers retrieved successfully', 200);
+            sendSuccess($formattedTeachers, 'Teachers retrieved successfully', 200);
+        } catch (\Exception $e) {
+            sendError('Error retrieving teachers: ' . $e->getMessage(), 500);
+        }
 
     } elseif ($method === 'POST') {
         // Add new teacher - requires manage_teachers permission
@@ -67,15 +123,17 @@ try {
         }
 
         // Validate required fields
-        $validation = validateRequiredFields($body, ['firstname', 'lastname', 'department']);
+        $validation = validateRequiredFields($body, ['first_name', 'last_name', 'department']);
         if (!$validation['valid']) {
             sendError($validation['message'], 400);
         }
 
-        $firstname = sanitizeInput($body['firstname']);
-        $lastname = sanitizeInput($body['lastname']);
-        $middlename = sanitizeInput($body['middlename'] ?? '');
+        $firstName = sanitizeInput($body['first_name']);
+        $middleName = sanitizeInput($body['middle_name'] ?? '');
+        $lastName = sanitizeInput($body['last_name']);
         $department = sanitizeInput($body['department']);
+        $email = sanitizeInput($body['email'] ?? '');
+        $status = sanitizeInput($body['status'] ?? 'active');
 
         // Validate department
         if (!isValidDepartment($department)) {
@@ -83,20 +141,32 @@ try {
         }
 
         // Insert new teacher
+        $now = new MongoDB\BSON\UTCDateTime(time() * 1000);
         $result = $teachers_collection->insertOne([
-            'firstname' => $firstname,
-            'lastname' => $lastname,
-            'middlename' => $middlename,
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+            'middle_name' => $middleName,
             'department' => $department,
-            'created_at' => new MongoDB\BSON\UTCDateTime(time() * 1000)
+            'email' => $email,
+            'status' => $status,
+            'picture' => $body['picture'] ?? null,
+            'created_at' => $now,
+            'updated_at' => $now,
+            'updated_by' => $_SESSION['admin_username'] ?? $_SESSION['admin_id'] ?? 'system'
         ]);
 
         sendSuccess([
             'id' => objectIdToString($result->getInsertedId()),
-            'firstname' => $firstname,
-            'lastname' => $lastname,
-            'middlename' => $middlename,
-            'department' => $department
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+            'middle_name' => $middleName,
+            'department' => $department,
+            'email' => $email,
+            'status' => $status,
+            'picture' => $body['picture'] ?? null,
+            'created_at' => $now->toDateTime()->format('Y-m-d H:i:s'),
+            'updated_at' => $now->toDateTime()->format('Y-m-d H:i:s'),
+            'updated_by' => $_SESSION['admin_username'] ?? $_SESSION['admin_id'] ?? 'system'
         ], 'Teacher added successfully', 201);
 
     } elseif ($method === 'PUT') {
@@ -104,7 +174,17 @@ try {
         requireLogin();
         requirePermission('manage_teachers');
 
-        $id = getIdFromPath();
+        // Try to get ID from query parameter first, then from REQUEST_URI as fallback
+        $id = $_GET['id'] ?? '';
+        
+        if (!$id) {
+            // Fallback: try to extract from REQUEST_URI using regex
+            $requestUri = $_SERVER['REQUEST_URI'] ?? '';
+            if (preg_match('/\/teachers\/([a-f0-9]{24})/i', $requestUri, $matches)) {
+                $id = $matches[1];
+            }
+        }
+        
         if (!$id) {
             sendError('Teacher ID not provided', 400);
         }
@@ -127,21 +207,36 @@ try {
 
         // Prepare update data
         $updateData = [];
-        if (isset($body['firstname'])) {
-            $updateData['firstname'] = sanitizeInput($body['firstname']);
+        if (isset($body['first_name'])) {
+            $updateData['first_name'] = sanitizeInput($body['first_name']);
         }
-        if (isset($body['lastname'])) {
-            $updateData['lastname'] = sanitizeInput($body['lastname']);
+        
+        if (isset($body['last_name'])) {
+            $updateData['last_name'] = sanitizeInput($body['last_name']);
         }
-        if (isset($body['middlename'])) {
-            $updateData['middlename'] = sanitizeInput($body['middlename']);
+        
+        if (isset($body['middle_name'])) {
+            $updateData['middle_name'] = sanitizeInput($body['middle_name']);
         }
+        
         if (isset($body['department'])) {
             $department = sanitizeInput($body['department']);
             if (!isValidDepartment($department)) {
                 sendError('Invalid department. Valid options: ECT, EDUC, CCJE, BHT', 400);
             }
             $updateData['department'] = $department;
+        }
+        
+        if (isset($body['email'])) {
+            $updateData['email'] = sanitizeInput($body['email']);
+        }
+        
+        if (isset($body['status'])) {
+            $updateData['status'] = sanitizeInput($body['status']);
+        }
+        
+        if (isset($body['picture'])) {
+            $updateData['picture'] = $body['picture'];
         }
 
         if (empty($updateData)) {
@@ -161,10 +256,12 @@ try {
 
         sendSuccess([
             'id' => objectIdToString($updatedTeacher['_id']),
-            'firstname' => $updatedTeacher['firstname'],
-            'lastname' => $updatedTeacher['lastname'],
-            'middlename' => $updatedTeacher['middlename'] ?? '',
-            'department' => $updatedTeacher['department']
+            'first_name' => $updatedTeacher['first_name'] ?? '',
+            'last_name' => $updatedTeacher['last_name'] ?? '',
+            'middle_name' => $updatedTeacher['middle_name'] ?? '',
+            'department' => $updatedTeacher['department'] ?? '',
+            'email' => $updatedTeacher['email'] ?? '',
+            'status' => $updatedTeacher['status'] ?? 'active'
         ], 'Teacher updated successfully', 200);
 
     } elseif ($method === 'DELETE') {
@@ -172,7 +269,17 @@ try {
         requireLogin();
         requirePermission('manage_teachers');
 
-        $id = getIdFromPath();
+        // Try to get ID from query parameter first, then from REQUEST_URI as fallback
+        $id = $_GET['id'] ?? '';
+        
+        if (!$id) {
+            // Fallback: try to extract from REQUEST_URI using regex
+            $requestUri = $_SERVER['REQUEST_URI'] ?? '';
+            if (preg_match('/\/teachers\/([a-f0-9]{24})/i', $requestUri, $matches)) {
+                $id = $matches[1];
+            }
+        }
+        
         if (!$id) {
             sendError('Teacher ID not provided', 400);
         }
@@ -201,5 +308,5 @@ try {
     }
 
 } catch (\Exception $e) {
-    sendError('Database error: ' . $e->getMessage(), 500);
+    sendError('Database error: ' . $e->getMessage() . ' at ' . $e->getFile() . ':' . $e->getLine(), 500);
 }

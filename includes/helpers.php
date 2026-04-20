@@ -601,11 +601,56 @@ function getValidDepartments() {
 
 /**
  * Get ID from URL path (used in REST API endpoints)
+ * Extracts the last segment of the path as an ID, handling both .php and non-.php cases
  */
 function getIdFromPath() {
-    $request_uri = $_SERVER['REQUEST_URI'] ?? '';
-    $path_segments = array_filter(explode('/', $request_uri));
-    return end($path_segments);
+    global $ORIGINAL_REQUEST_PATH;
+    
+    $path = '';
+    
+    // Try to use the original request path set by index.php router
+    if (isset($ORIGINAL_REQUEST_PATH) && !empty($ORIGINAL_REQUEST_PATH)) {
+        $path = $ORIGINAL_REQUEST_PATH;
+    } else {
+        // Fallback to REQUEST_URI parsing
+        $path = $_SERVER['REQUEST_URI'] ?? '';
+    }
+    
+    // Validate that we have a path
+    if (empty($path)) {
+        return '';
+    }
+    
+    // Remove .php extension if present
+    $path = str_replace('.php', '', $path);
+    $path = str_replace('.PHP', '', $path);
+    
+    // Split by / and get non-empty segments
+    $segments = array_filter(explode('/', trim($path, '/')), function($s) {
+        return strlen(trim($s)) > 0;
+    });
+    
+    if (empty($segments)) {
+        return '';
+    }
+    
+    // Get the last segment
+    $last_segment = end($segments);
+    
+    // List of keywords that are route names, not IDs
+    $keywords = [
+        'api', 'admin', 'index', 'login', 'teachers', 'questions', 'evaluations', 
+        'departments', 'dashboard', 'users', 'analytics', 'results', 'settings',
+        'edit', 'delete', 'create', 'update', 'export', 'import', 'teacher-eval'
+    ];
+    
+    // If the last segment is a keyword, return empty
+    if (in_array(strtolower($last_segment), $keywords)) {
+        return '';
+    }
+    
+    // Otherwise, it's likely an ID (MongoDB ObjectId or numeric ID)
+    return $last_segment;
 }
 
 /**

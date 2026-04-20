@@ -14,7 +14,7 @@
     This is a placeholder for base href that will be replaced by the value of
     the `--base-href` argument provided to `flutter build`.
   -->
-  <base href="/flutter-app/">
+  <base href="/teacher-eval/">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
@@ -32,14 +32,217 @@
   <title>teacher_eval_app</title>
   <link rel="manifest" href="manifest.json">
   
+  <!-- PWA Intro Modal Styles -->
+  <style>
+    .pwa-intro-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(5px);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .pwa-intro-modal.active {
+      display: flex;
+    }
+    
+    .modal-content {
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      border-radius: 16px;
+      padding: 40px;
+      max-width: 500px;
+      width: 90%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 40px rgba(59, 130, 246, 0.3);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      animation: slideUp 0.4s ease-out;
+      text-align: center;
+      color: white;
+    }
+    
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .modal-logo {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 20px;
+      background: rgba(59, 130, 246, 0.2);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 40px;
+    }
+    
+    .modal-title {
+      font-size: 28px;
+      font-weight: 800;
+      margin-bottom: 10px;
+      background: linear-gradient(135deg, #ffffff 0%, #e0f2fe 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .modal-subtitle {
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 14px;
+      margin-bottom: 25px;
+    }
+    
+    .features-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin-bottom: 30px;
+      text-align: left;
+    }
+    
+    .feature-item {
+      background: rgba(59, 130, 246, 0.15);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      border-radius: 10px;
+      padding: 15px;
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.9);
+    }
+    
+    .feature-item strong {
+      display: block;
+      margin-bottom: 5px;
+      color: #60a5fa;
+    }
+    
+    .modal-buttons {
+      display: flex;
+      gap: 10px;
+      margin-top: 30px;
+    }
+    
+    .btn-learn {
+      flex: 1;
+      padding: 12px 20px;
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+      border: none;
+      border-radius: 10px;
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 14px;
+    }
+    
+    .btn-learn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(59, 130, 246, 0.4);
+    }
+    
+    .btn-close-modal {
+      flex: 1;
+      padding: 12px 20px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 10px;
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 14px;
+    }
+    
+    .btn-close-modal:hover {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+  </style>
+  
   <!-- Always show UI - Flutter will handle teacher loading based on evaluation status -->
   
   <!-- Evaluation Status Check Script (MUST run before Flutter app) -->
   <script src="eval-status-check.js?v=10"></script>
 </head>
 <body>
+  <!-- PWA Intro Modal -->
+  <div id="pwaIntroModal" class="pwa-intro-modal">
+    <div class="modal-content">
+      <div class="modal-logo">📋</div>
+      <h1 class="modal-title">Teacher Evaluation System</h1>
+      <p class="modal-subtitle">Fullbright College Inc.</p>
+      
+      <div class="features-grid">
+        <div class="feature-item">
+          <strong>🔒 Secure</strong>
+          Anonymous evaluations
+        </div>
+        <div class="feature-item">
+          <strong>⚡ Real-time</strong>
+          Instant analytics
+        </div>
+        <div class="feature-item">
+          <strong>📊 Data-driven</strong>
+          Detailed insights
+        </div>
+        <div class="feature-item">
+          <strong>📱 Mobile-ready</strong>
+          All devices
+        </div>
+      </div>
+      
+      <div class="modal-buttons">
+        <button class="btn-learn" onclick="window.location.href='/teacher-eval/admin/login.php'">
+          Get Started
+        </button>
+        <button class="btn-close-modal" onclick="closeIntroModal()">
+          Continue
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Service Worker Registration for PWA -->
   <script>
+    // Show intro modal on first load
+    function showIntroModal() {
+      const modal = document.getElementById('pwaIntroModal');
+      const lastShown = localStorage.getItem('pwaIntroShown');
+      const oneWeekAgo = new Date().getTime() - (7 * 24 * 60 * 60 * 1000);
+      
+      // Show modal if never shown or if more than a week has passed
+      if (!lastShown || parseInt(lastShown) < oneWeekAgo) {
+        modal.classList.add('active');
+        localStorage.setItem('pwaIntroShown', new Date().getTime());
+      }
+    }
+    
+    function closeIntroModal() {
+      const modal = document.getElementById('pwaIntroModal');
+      modal.classList.remove('active');
+    }
+    
+    // Show modal when page loads
+    window.addEventListener('load', showIntroModal);
+    
+    // Also allow closing with Escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeIntroModal();
+      }
+    });
+    
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('service-worker.js')

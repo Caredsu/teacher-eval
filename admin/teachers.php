@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 /**
  * Teachers Management - Admin Console
  * Uses new API endpoints instead of direct database queries
@@ -26,183 +26,9 @@ const ALLOWED_DEPARTMENTS = ['ECT', 'EDUC', 'CCJE', 'BHT'];
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
-    <style>
-        .role-badge {
-            font-size: 11px;
-            padding: 4px 8px;
-            font-weight: 600;
-        }
-
-        .dept-badge {
-            font-weight: 600;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-        }
-
-        .status-badge {
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-weight: 600;
-            font-size: 12px;
-            display: inline-block;
-        }
-
-        .status-active {
-            background: #d4edda;
-            color: #155724;
-        }
-
-        .status-inactive {
-            background: #f8d7da;
-            color: #721c24;
-        }
-
-        .dept-ect { background: #cfe2ff; color: #084298; }
-        .dept-educ { background: #d1e7dd; color: #0f5132; }
-        .dept-ccje { background: #fff3cd; color: #664d03; }
-        .dept-bht { background: #f8d7da; color: #721c24; }
-
-        body.dark-mode .status-active {
-            background: #1b5e20;
-            color: #51cf66;
-        }
-
-        body.dark-mode .status-inactive {
-            background: #5a1818;
-            color: #ff6b6b;
-        }
-
-        .modal-header {
-            border-bottom: 2px solid #667eea;
-        }
-
-        body.dark-mode .modal-header {
-            background: #2d2d2d;
-        }
-
-        body.dark-mode .modal-body {
-            background: #2d2d2d;
-        }
-
-        body.dark-mode .form-control,
-        body.dark-mode .form-select {
-            background-color: #1a1a1a;
-            color: #e0e0e0;
-            border-color: #444;
-        }
-
-        body.dark-mode .form-control:focus,
-        body.dark-mode .form-select:focus {
-            border-color: #667eea;
-        }
-
-        /* Disable animations on table hover */
-        .table tbody tr,
-        .table tbody tr * {
-            animation: none !important;
-            -webkit-animation: none !important;
-            -moz-animation: none !important;
-            -o-animation: none !important;
-            transition: none !important;
-            -webkit-transition: none !important;
-            -moz-transition: none !important;
-            -o-transition: none !important;
-            transform: none !important;
-            -webkit-transform: none !important;
-            -moz-transform: none !important;
-            -o-transform: none !important;
-            animation-play-state: paused !important;
-            -webkit-animation-play-state: paused !important;
-        }
-
-        /* Icon-only button styles */
-        .btn-icon {
-            width: 36px;
-            height: 36px;
-            padding: 0 !important;
-            border-radius: 6px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            border: 1.5px solid #667eea;
-            background: transparent !important;
-            color: #667eea;
-            font-size: 16px;
-            transition: all 0.2s ease;
-            margin: 0 4px;
-        }
-
-        .btn-icon:hover {
-            background: #667eea !important;
-            color: white;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-        }
-
-        .btn-icon.deleteBtn {
-            border-color: #dc3545;
-            color: #dc3545;
-        }
-
-        .btn-icon.deleteBtn:hover {
-            background: #dc3545 !important;
-            color: white;
-            box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
-        }
-
-        body.dark-mode .btn-icon {
-            border-color: #8b9eff;
-            color: #8b9eff;
-        }
-
-        body.dark-mode .btn-icon:hover {
-            background: #667eea !important;
-            color: white;
-        }
-
-        body.dark-mode .btn-icon.deleteBtn {
-            border-color: #ff6b6b;
-            color: #ff6b6b;
-        }
-
-        body.dark-mode .btn-icon.deleteBtn:hover {
-            background: #dc3545 !important;
-            color: white;
-        }
-
-        .action-buttons {
-            display: flex;
-            gap: 4px;
-            justify-content: center;
-        }
-        
-        /* Skeleton Loader Styles */
-        .skeleton-loader {
-            display: none !important;
-            position: fixed;
-            top: 70px;
-            left: 0;
-            right: 0;
-            width: 100%;
-            z-index: 999;
-            background: #f8fafc;
-        }
-        
-        .skeleton-loader.loading {
-            display: block !important;
-        }
-        
-        .skeleton-loader.loading ~ .content-loader {
-            display: none !important;
-        }
-        
-        .content-loader {
-            display: block !important;
-            opacity: 1;
-            transition: opacity 0.3s ease;
-        }
-    </style>
+    <link rel="stylesheet" href="<?= ASSETS_URL ?>/css/global.css">
+    <link rel="stylesheet" href="<?= ASSETS_URL ?>/css/components.css">
+    <link rel="stylesheet" href="<?= ASSETS_URL ?>/css/pages/teachers.css">
 </head>
 <body>
     <!-- Navbar -->
@@ -224,12 +50,6 @@ const ALLOWED_DEPARTMENTS = ['ECT', 'EDUC', 'CCJE', 'BHT'];
                 </div>
             </div>
         </div>
-        <style>
-            @keyframes skeleton-loading {
-                0% { background-position: 200% 0; }
-                100% { background-position: -200% 0; }
-            }
-        </style>
     </div>
     
     <!-- Main Content Wrapper -->
@@ -435,14 +255,16 @@ const ALLOWED_DEPARTMENTS = ['ECT', 'EDUC', 'CCJE', 'BHT'];
                         data: 'department',
                         title: 'Department',
                         render: function(data) {
+                            if (!data) return '<span class="dept-badge">N/A</span>';
                             return `<span class="dept-badge dept-${data.toLowerCase()}">${data}</span>`;
                         }
                     },
-                    { data: 'email', title: 'Email' },
+                    { data: 'email', title: 'Email', defaultContent: '-' },
                     {
                         data: 'status',
                         title: 'Status',
                         render: function(data) {
+                            if (!data) return '<span class="status-badge">N/A</span>';
                             const statusClass = data === 'active' ? 'status-active' : 'status-inactive';
                             return `<span class="status-badge ${statusClass}">${data.toUpperCase()}</span>`;
                         }
@@ -487,6 +309,9 @@ const ALLOWED_DEPARTMENTS = ['ECT', 'EDUC', 'CCJE', 'BHT'];
             api.getTeachers()
                 .then(response => {
                     console.log('Teachers response:', response);
+                    console.log('Response data:', response.data);
+                    console.log('Data length:', response.data ? response.data.length : 0);
+                    
                     if (response.success) {
                         // Handle paginated response or raw array
                         let data = response.data;
@@ -496,11 +321,15 @@ const ALLOWED_DEPARTMENTS = ['ECT', 'EDUC', 'CCJE', 'BHT'];
                             data = [];
                         }
                         
+                        console.log('Final data array:', data);
+                        
                         // Format data for DataTable
                         const formattedData = data.map(teacher => ({
                             ...teacher,
                             full_name: `${teacher.first_name} ${teacher.middle_name} ${teacher.last_name}`.trim()
                         }));
+                        
+                        console.log('Formatted data for DataTable:', formattedData);
                         teachersTable.clear().rows.add(formattedData).draw();
                         attachRowEventHandlers();
                         initializeTooltips();
@@ -778,16 +607,7 @@ const ALLOWED_DEPARTMENTS = ['ECT', 'EDUC', 'CCJE', 'BHT'];
             const rows = teachersTable.rows({ search: 'applied' }).data().toArray();
             
             let printContent = '<html><head><meta charset="UTF-8"><title>Teachers Report</title>';
-            printContent += '<style>';
-            printContent += 'body { font-family: Arial, sans-serif; margin: 20px; background: white; }';
-            printContent += 'h1 { text-align: center; color: #333; margin-bottom: 30px; }';
-            printContent += 'table { width: 100%; border-collapse: collapse; margin-top: 20px; }';
-            printContent += 'th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }';
-            printContent += 'th { background: #667eea; color: white; font-weight: bold; }';
-            printContent += 'tr:nth-child(even) { background: #f9f9f9; }';
-            printContent += '.timestamp { text-align: center; color: #666; margin-top: 20px; font-size: 12px; }';
-            printContent += '@media print { body { margin: 0; } }';
-            printContent += '</style></head><body>';
+            printContent += '</head><body>';
             
             printContent += '<h1>Teachers Report</h1>';
             printContent += '<p style="text-align: center; color: #666;">Generated: ' + new Date().toLocaleString() + '</p>';

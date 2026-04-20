@@ -145,116 +145,12 @@ $teachers = $teachers_collection->find(
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="<?= ASSETS_URL ?>/css/dark-theme.css?v=2.0">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="<?= ASSETS_URL ?>/css/global.css">
+    <link rel="stylesheet" href="<?= ASSETS_URL ?>/css/components.css">
+    <link rel="stylesheet" href="<?= ASSETS_URL ?>/css/pages/analytics.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <link rel="stylesheet" href="<?= ASSETS_URL ?>/css/skeleton-loader.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
-    <style>
-        .stat-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-        }
-
-        body.dark-mode .stat-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        }
-
-        .stat-card h3 {
-            font-size: 14px;
-            font-weight: 600;
-            margin-bottom: 10px;
-            opacity: 0.9;
-        }
-
-        .stat-card .stat-value {
-            font-size: 32px;
-            font-weight: bold;
-        }
-
-        .chart-container {
-            position: relative;
-            height: 400px;
-            margin-bottom: 30px;
-        }
-
-        .badge-ratings {
-            display: inline-block;
-            padding: 8px 12px;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: 600;
-            margin: 2px;
-        }
-
-        .badge-excellent {
-            background-color: #198754;
-            color: white;
-        }
-
-        .badge-good {
-            background-color: #28a745;
-            color: white;
-        }
-
-        .badge-average {
-            background-color: #ffc107;
-            color: #333;
-        }
-
-        .badge-poor {
-            background-color: #fd7e14;
-            color: white;
-        }
-
-        .badge-very-poor {
-            background-color: #dc3545;
-            color: white;
-        }
-
-        body.dark-mode .badge-average {
-            color: #333;
-        }
-
-        .teacher-rating-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 12px 0;
-            border-bottom: 1px solid #e0e0e0;
-        }
-
-        body.dark-mode .teacher-rating-row {
-            border-bottom-color: #444;
-        }
-        
-        /* Skeleton Loader Styles */
-        .skeleton-loader {
-            display: none !important;
-            position: fixed;
-            top: 70px;
-            left: 0;
-            right: 0;
-            width: 100%;
-            z-index: 999;
-            background: #f8fafc;
-        }
-        
-        .skeleton-loader.loading {
-            display: block !important;
-        }
-        
-        .skeleton-loader.loading ~ .content-loader {
-            display: none !important;
-        }
-        
-        .content-loader {
-            display: block !important;
-            opacity: 1;
-            transition: opacity 0.3s ease;
-        }
-    </style>
 </head>
 <body>
     <!-- Navbar -->
@@ -276,12 +172,6 @@ $teachers = $teachers_collection->find(
                 </div>
             </div>
         </div>
-        <style>
-            @keyframes skeleton-loading {
-                0% { background-position: 200% 0; }
-                100% { background-position: -200% 0; }
-            }
-        </style>
     </div>
     
     <!-- Main Content Wrapper -->
@@ -431,54 +321,21 @@ $teachers = $teachers_collection->find(
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
     <script src="<?= ASSETS_URL ?>/js/api-service.js?v=2"></script>
     <script src="<?= ASSETS_URL ?>/js/main.js"></script>
-    <script>
-        // Rating Distribution Chart
-        const distributionCtx = document.getElementById('distributionChart').getContext('2d');
-        new Chart(distributionCtx, {
-            type: 'doughnut',
-            data: {
-                labels: ['1 Star', '2 Stars', '3 Stars', '4 Stars', '5 Stars'],
-                datasets: [{
-                    data: [
-                        <?= $overall_ratings['1'] ?? 0 ?>,
-                        <?= $overall_ratings['2'] ?? 0 ?>,
-                        <?= $overall_ratings['3'] ?? 0 ?>,
-                        <?= $overall_ratings['4'] ?? 0 ?>,
-                        <?= $overall_ratings['5'] ?? 0 ?>
-                    ],
-                    backgroundColor: [
-                        '#dc3545',
-                        '#fd7e14',
-                        '#ffc107',
-                        '#20c997',
-                        '#198754'
-                    ],
-                    borderColor: '#fff',
-                    borderWidth: 2
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: { padding: 15 }
-                    }
-                }
-            }
-        });
-    </script>
+    <script src="<?= ASSETS_URL ?>/js/global.js"></script>
+    <script src="<?= ASSETS_URL ?>/js/confirmation.js"></script>
+    <script src="<?= ASSETS_URL ?>/js/export-pdf.js"></script>
+    <script src="<?= ASSETS_URL ?>/js/pages/analytics.js"></script>
     
+    <!-- Initialization Script -->
     <script>
-        // Hide skeleton loader when page loads
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', () => {
             const skeletonLoader = document.querySelector('.skeleton-loader');
             if (skeletonLoader) {
                 setTimeout(function() {
                     skeletonLoader.classList.remove('loading');
                 }, 300);
             }
+            initializeAnalyticsCharts();
         });
     </script>
     

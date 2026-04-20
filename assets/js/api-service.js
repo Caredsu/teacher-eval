@@ -21,12 +21,14 @@ class APIService {
             const baseEndpoint = hasQuery ? endpoint.split('?')[0] : endpoint;
             const queryString = hasQuery ? '?' + endpoint.split('?')[1] : '';
             const url = `${this.apiPath}${baseEndpoint}.php${queryString}`;
+            
             const options = {
                 method: method,
                 headers: {
                     'Content-Type': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest'
-                }
+                },
+                credentials: 'include'  // Send session cookies with request
             };
 
             if (data) {
@@ -35,10 +37,19 @@ class APIService {
 
             const response = await fetch(url, options);
             
-            // Handle non-JSON responses (errors)
-            const contentType = response.headers.get('content-type');
-            if (!contentType || !contentType.includes('application/json')) {
-                throw new Error(`Expected JSON but got ${contentType || 'unknown'}`);
+            // Handle non-JSON responses (errors) - log full response for debugging
+            const contentType = response.headers.get('content-type') || 'unknown';
+            if (!contentType.includes('application/json')) {
+                const responseText = await response.text();
+                console.error('🔴 API Non-JSON Response:', {
+                    method: method,
+                    endpoint: endpoint,
+                    url: url,
+                    status: response.status,
+                    contentType: contentType,
+                    responsePreview: responseText.substring(0, 500)
+                });
+                throw new Error(`Expected JSON but got ${contentType}. Status: ${response.status}`);
             }
             
             const result = await response.json();
@@ -89,7 +100,7 @@ class APIService {
     }
 
     async getTeacher(id) {
-        return this.request('GET', `/teachers/${id}`);
+        return this.request('GET', `/teachers?id=${id}`);
     }
 
     async createTeacher(data) {
@@ -97,11 +108,11 @@ class APIService {
     }
 
     async updateTeacher(id, data) {
-        return this.request('PUT', `/teachers/${id}`, data);
+        return this.request('PUT', `/teachers?id=${id}`, data);
     }
 
     async deleteTeacher(id) {
-        return this.request('DELETE', `/teachers/${id}`);
+        return this.request('DELETE', `/teachers?id=${id}`);
     }
 
     // Question Management
@@ -110,7 +121,7 @@ class APIService {
     }
 
     async getQuestion(id) {
-        return this.request('GET', `/questions/${id}`);
+        return this.request('GET', `/questions?id=${id}`);
     }
 
     async createQuestion(data) {
@@ -118,11 +129,11 @@ class APIService {
     }
 
     async updateQuestion(id, data) {
-        return this.request('PUT', `/questions/${id}`, data);
+        return this.request('PUT', `/questions?id=${id}`, data);
     }
 
     async deleteQuestion(id) {
-        return this.request('DELETE', `/questions/${id}`);
+        return this.request('DELETE', `/questions?id=${id}`);
     }
 
     // Dashboard

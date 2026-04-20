@@ -40,12 +40,18 @@ if (isset($_GET['request'])) {
     $request = trim($request, '/');
 }
 
+// Store the original request path globally for API files to access
+// This is needed because getIdFromPath() may be unreliable after .htaccess rewrite
+global $ORIGINAL_REQUEST_PATH;
+$ORIGINAL_REQUEST_PATH = $request;
+
 // Route the request
 if (strpos($request, 'api/') === 0) {
     $path = substr($request, 4); // Remove 'api/' prefix
-
-    // Extract the endpoint
+    
+    // Extract the endpoint - remove .php extension if present
     $endpoint = explode('/', $path)[0];
+    $endpoint = str_replace('.php', '', $endpoint);  // Remove .php extension
 
     // Route to appropriate API file
     switch ($endpoint) {
