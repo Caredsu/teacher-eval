@@ -218,23 +218,31 @@
     // Show intro modal on first load
     function showIntroModal() {
       const modal = document.getElementById('pwaIntroModal');
+      const urlParams = new URLSearchParams(window.location.search);
+      const forceShow = urlParams.get('showModal') === 'true';
       const lastShown = localStorage.getItem('pwaIntroShown');
       const oneWeekAgo = new Date().getTime() - (7 * 24 * 60 * 60 * 1000);
       
-      // Show modal if never shown or if more than a week has passed
-      if (!lastShown || parseInt(lastShown) < oneWeekAgo) {
+      // Show modal if never shown, more than a week has passed, or forced via URL
+      if (forceShow || !lastShown || parseInt(lastShown) < oneWeekAgo) {
         modal.classList.add('active');
         localStorage.setItem('pwaIntroShown', new Date().getTime());
+        console.log('[PWA Modal] Intro modal shown');
       }
     }
     
     function closeIntroModal() {
       const modal = document.getElementById('pwaIntroModal');
       modal.classList.remove('active');
+      console.log('[PWA Modal] Intro modal closed');
     }
     
     // Show modal when page loads
-    window.addEventListener('load', showIntroModal);
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', showIntroModal);
+    } else {
+      showIntroModal();
+    }
     
     // Also allow closing with Escape key
     document.addEventListener('keydown', (e) => {
