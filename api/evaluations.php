@@ -22,6 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/helpers.php';
+require_once __DIR__ . '/../includes/duplicate-prevention.php';
 
 setJsonHeader();
 
@@ -122,20 +123,31 @@ try {
             sendError('Feedback must not exceed 1000 characters', 400);
         }
 
-        // Get session identifier (IP address as proxy for session)
-        $sessionIdentifier = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+        // Get session identifier (IP address + device ID for better tracking)
+        $ipAddress = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
         $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? '';
-
-        // Check for any previous evaluation from same device for this teacher (permanent block)
-        $existingEvaluation = $evaluations_collection->findOne([
-            'teacher_id' => $teacherObjectId,
-            'ip_address' => $sessionIdentifier,
-            'user_agent' => $userAgent
-        ]);
-
-        if ($existingEvaluation) {
-            sendError('You have already submitted an evaluation for this teacher from your device. Each teacher can only be evaluated once per device.', 400);
+        $deviceId = $body['device_id'] ?? null; // Sent from frontend
+        
+        // Check for duplicate submission
+        $dupCheck = checkDuplicateSubmission($teacherId, $deviceId, $ipAddress, $userAgent);
+        if ($dupCheck['is_duplicate']) {
+            sendError($dupCheck['message'], 400);
         }
+        
+        // Log submission attempt (creates tracking record)
+        $logId = logSubmissionAttempt($teacherId, 'pending', $deviceId, $ipAddress, $userAgent);
+        
+        // OLD CODE - kept for backward compatibility reference:
+        // Check for any previous evaluation from same device for this teacher (permanent block)
+        // $existingEvaluation = $evaluations_collection->findOne([
+        //     'teacher_id' => $teacherObjectId,
+        //     'ip_address' => $ipAddress,
+        //     'user_agent' => $userAgent
+        // ]);
+        //
+        // if ($existingEvaluation) {
+        //     sendError('You have already submitted an evaluation for this teacher from your device. Each teacher can only be evaluated once per device.', 400);
+        // }
 
         // Use Evaluation model to save with semester/year tracking
         require_once __DIR__ . '/../app/Models/Evaluation.php';
@@ -145,10 +157,17 @@ try {
             'teacher_id' => $teacherObjectId,
             'answers' => $answers,
             'feedback' => $feedback,
-            'ip_address' => $sessionIdentifier,
+            'ip_address' => $ipAddress,
             'user_agent' => $userAgent,
-            'session_identifier' => $sessionIdentifier  // For quick lookups
+            'device_id' => $deviceId,
+            'device_fingerprint' => generateDeviceFingerprint($deviceId, $ipAddress, $userAgent),
+            'session_identifier' => $ipAddress  // For quick lookups
         ]);
+        
+        // Update submission log to completed
+        if ($logId) {
+            updateSubmissionLogStatus($logId, 'completed');
+        }
 
         sendSuccess([
             'id' => objectIdToString($evaluationId),

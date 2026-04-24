@@ -73,13 +73,22 @@ if (strpos($request, 'api/') === 0) {
         default:
             sendError('Endpoint not found', 404);
     }
-} elseif ($request === 'api' || $request === '') {
+} elseif ($request === 'api') {
     // Handle base API path - return health check
     sendSuccess([
         'status' => 'ok',
         'version' => '1.0.0',
         'timestamp' => date('Y-m-d H:i:s')
     ], 'API is running', 200);
+} elseif ($request === '' || $request === 'index.html') {
+    // Serve Flutter app - index.html
+    $indexFile = __DIR__ . '/index.html';
+    if (file_exists($indexFile)) {
+        header('Content-Type: text/html; charset=utf-8');
+        readfile($indexFile);
+    } else {
+        sendError('Flutter app not found. Please build with: flutter build web --release', 404);
+    }
 } else {
     // Show API documentation
     showDocumentation();

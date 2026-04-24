@@ -260,7 +260,7 @@ try {
     $recent_evaluations = $evaluations_collection->find(
         [],
         [
-            'projection' => ['teacher_id' => 1, 'submitted_at' => 1],
+            'projection' => ['teacher_id' => 1, 'submitted_at' => 1, 'answers' => 1],
             'sort' => ['submitted_at' => -1],
             'limit' => 10
         ]
@@ -298,7 +298,7 @@ try {
     $recent_evaluations = $evaluations_collection->find(
         [],
         [
-            'projection' => ['teacher_id' => 1, 'submitted_at' => 1],
+            'projection' => ['teacher_id' => 1, 'submitted_at' => 1, 'answers' => 1],
             'sort' => ['submitted_at' => -1],
             'limit' => 10
         ]
@@ -626,7 +626,7 @@ try {
                         <h5 class="mb-0">Evaluation Status</h5>
                     </div>
                     <div class="card-body" style="height: 350px; display: flex; align-items: center;">
-                        <canvas id="evaluationStatusChart"></canvas>
+                        <canvas id="evaluationStatusChart" data-total-evals="<?= $total_evaluations ?>" data-total-teachers="<?= $total_teachers ?>"></canvas>
                     </div>
                 </div>
             </div>

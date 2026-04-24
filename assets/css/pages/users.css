@@ -90,6 +90,46 @@
     border-radius: 4px;
 }
 
+/* Icon Buttons */
+.btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #000000;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 16px;
+}
+
+.btn-icon:hover {
+    background: #f1f5f9;
+    border-color: #94a3b8;
+}
+
+.btn-icon.editUserBtn {
+    color: #3b82f6;
+}
+
+.btn-icon.editUserBtn:hover {
+    background: #eff6ff;
+    border-color: #3b82f6;
+}
+
+.btn-icon.deleteUserBtn {
+    color: #ef4444;
+}
+
+.btn-icon.deleteUserBtn:hover {
+    background: #fef2f2;
+    border-color: #ef4444;
+}
+
 /* Users Filter/Search */
 .users-filter {
     margin-bottom: 1.5rem;

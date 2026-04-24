@@ -175,7 +175,7 @@ $teachers = $teachers_collection->find(
     </div>
     
     <!-- Main Content Wrapper -->
-    <div class="content-loader active">
+    <div class="content-loader">
         <div class="container-fluid py-5">
         <!-- Header -->
         <div class="row mb-4">
@@ -330,9 +330,14 @@ $teachers = $teachers_collection->find(
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const skeletonLoader = document.querySelector('.skeleton-loader');
+            const contentLoader = document.querySelector('.content-loader');
+            
             if (skeletonLoader) {
                 setTimeout(function() {
                     skeletonLoader.classList.remove('loading');
+                    if (contentLoader) {
+                        contentLoader.classList.add('active');
+                    }
                 }, 300);
             }
             initializeAnalyticsCharts();

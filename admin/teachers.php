@@ -53,7 +53,7 @@ const ALLOWED_DEPARTMENTS = ['ECT', 'EDUC', 'CCJE', 'BHT'];
     </div>
     
     <!-- Main Content Wrapper -->
-    <div class="content-loader active">
+    <div class="content-loader">
         <div class="container-fluid py-5">
             <div class="row mb-4">
                 <div class="col-md-6">
@@ -236,9 +236,14 @@ const ALLOWED_DEPARTMENTS = ['ECT', 'EDUC', 'CCJE', 'BHT'];
         
         document.addEventListener('DOMContentLoaded', () => {
             const skeletonLoader = document.querySelector('.skeleton-loader');
+            const contentLoader = document.querySelector('.content-loader');
+            
             if (skeletonLoader) {
                 setTimeout(function() {
                     skeletonLoader.classList.remove('loading');
+                    if (contentLoader) {
+                        contentLoader.classList.add('active');
+                    }
                 }, 300);
             }
             initializeTeachersTable();

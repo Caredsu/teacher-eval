@@ -295,7 +295,7 @@ if (!empty($evaluations)) {
     </div>
     
     <!-- Main Content Wrapper -->
-    <div class="content-loader active">
+    <div class="content-loader">
         <div class="container-fluid py-5">
         <div class="row mb-4">
             <div class="col-md-6">
@@ -985,9 +985,14 @@ if (!empty($evaluations)) {
         document.addEventListener('DOMContentLoaded', function() {
             // Hide skeleton loader
             const skeletonLoader = document.querySelector('.skeleton-loader');
+            const contentLoader = document.querySelector('.content-loader');
+            
             if (skeletonLoader) {
                 setTimeout(function() {
                     skeletonLoader.classList.remove('loading');
+                    if (contentLoader) {
+                        contentLoader.classList.add('active');
+                    }
                 }, 300);
             }
             

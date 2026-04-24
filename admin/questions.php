@@ -51,7 +51,7 @@ requirePermission('manage_questions');
     </div>
     
     <!-- Main Content Wrapper -->
-    <div class="content-loader active">
+    <div class="content-loader">
         <div class="container-fluid py-5">
             <div class="row mb-4">
                 <div class="col-md-6">
@@ -181,8 +181,13 @@ requirePermission('manage_questions');
             // Wait a tiny bit to ensure all scripts are loaded
             setTimeout(function() {
                 const skeletonLoader = document.querySelector('.skeleton-loader');
+                const contentLoader = document.querySelector('.content-loader');
+                
                 if (skeletonLoader) {
                     skeletonLoader.classList.remove('loading');
+                    if (contentLoader) {
+                        contentLoader.classList.add('active');
+                    }
                 }
                 
                 // Initialize the table
