@@ -14,11 +14,26 @@
     This is a placeholder for base href that will be replaced by the value of
     the `--base-href` argument provided to `flutter build`.
   -->
-  <base href="/teacher-eval/">
+  <base id="dynamicBaseHref" href="/">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="A new Flutter project.">
+
+  <!-- Detect and set correct base href for localhost vs Render -->
+  <script>
+    const host = window.location.hostname;
+    const isLocalhost = host === 'localhost' || host === '127.0.0.1' || host.includes('xampp');
+    const baseHref = document.getElementById('dynamicBaseHref');
+    
+    if (isLocalhost) {
+      baseHref.href = '/teacher-eval/';
+      console.log('[Init] Using localhost base: /teacher-eval/');
+    } else {
+      baseHref.href = '/';
+      console.log('[Init] Using Render base: /');
+    }
+  </script>
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
