@@ -33,10 +33,10 @@
   <link rel="manifest" href="pwa/manifest.json">
   
   <!-- API Redirect Fix (MUST load before Flutter) -->
-  <script src="assets/js/api-redirect.js?v=1"></script>
+  <script src="pwa/assets/js/api-redirect.js?v=1"></script>
   
   <!-- Teacher Evaluation UI Handler (disable evaluated teachers) -->
-  <script src="assets/js/teacher-evaluation-ui.js?v=1"></script>
+  <script src="pwa/assets/js/teacher-evaluation-ui.js?v=1"></script>
   
   <!-- PWA Intro Modal Styles -->
   <style>
@@ -179,7 +179,7 @@
   <!-- Always show UI - Flutter will handle teacher loading based on evaluation status -->
   
   <!-- Evaluation Status Check Script (MUST run before Flutter app) -->
-  <script src="eval-status-check.js?v=10"></script>
+  <script src="pwa/eval-status-check.js?v=10"></script>
 </head>
 <body>
   <!-- PWA Intro Modal -->
@@ -274,7 +274,7 @@
   <script>
     console.log('[Bootstrap] Loading Flutter...');
     const script = document.createElement('script');
-    script.src = 'flutter_bootstrap.js';
+    script.src = 'pwa/flutter_bootstrap.js';
     script.async = true;
     script.onload = () => console.log('[Bootstrap] flutter_bootstrap.js loaded');
     script.onerror = (e) => console.error('[Bootstrap] flutter_bootstrap.js failed:', e);
