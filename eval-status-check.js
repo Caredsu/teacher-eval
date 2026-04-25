@@ -9,7 +9,8 @@
 
   async function checkEvaluationStatus() {
     try {
-      const url = 'http://localhost/teacher-eval/index.php?request=api/evaluations/status';
+      const baseUrl = window.location.origin;
+      const url = `${baseUrl}/index.php?request=api/evaluations/status`;
       const response = await fetch(url, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
