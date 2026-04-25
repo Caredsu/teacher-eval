@@ -113,6 +113,12 @@ class DuplicatePreventionManager {
     onSubmissionSuccess(teacherId) {
         this.submissionInProgress = false;
         this.markTeacherAsEvaluated(teacherId);
+        
+        // Also notify UI handler to disable the teacher
+        if (window.teacherEvaluationUI) {
+            window.teacherEvaluationUI.markTeacherAsEvaluated(teacherId);
+        }
+        
         return {
             message: '✅ Evaluation submitted successfully!',
             type: 'success'

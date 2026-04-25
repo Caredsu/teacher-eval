@@ -311,20 +311,17 @@ const ALLOWED_DEPARTMENTS = ['ECT', 'EDUC', 'CCJE', 'BHT'];
         }
         
         function loadTeachers() {
-            api.getTeachers()
-                .then(response => {
-                    console.log('Teachers response:', response);
-                    console.log('Response data:', response.data);
-                    console.log('Data length:', response.data ? response.data.length : 0);
+            // Fetch ALL teachers (including inactive) for admin to manage
+            fetch('/teacher-eval/api/teachers.php?show_all=true')
+                .then(response => response.json())
+                .then(result => {
+                    console.log('Teachers response:', result);
+                    console.log('Response data:', result.data);
+                    console.log('Data length:', result.data ? result.data.length : 0);
                     
-                    if (response.success) {
-                        // Handle paginated response or raw array
-                        let data = response.data;
-                        if (data && data.data && Array.isArray(data.data)) {
-                            data = data.data;  // Extract from paginated wrapper
-                        } else if (!Array.isArray(data)) {
-                            data = [];
-                        }
+                    if (result.success) {
+                        // Handle array response
+                        let data = Array.isArray(result.data) ? result.data : [];
                         
                         console.log('Final data array:', data);
                         

@@ -83,7 +83,33 @@ try {
         
         // Get all teachers - PUBLIC ACCESS (with field projection)
         try {
-            $teachers = $teachers_collection->find([], [
+            // Check for evaluated teachers (comma-separated IDs)
+            $evaluatedParam = $_GET['evaluated_ids'] ?? '';
+            $evaluatedIds = [];
+            
+            if (!empty($evaluatedParam)) {
+                $idList = array_filter(array_map('trim', explode(',', $evaluatedParam)));
+                foreach ($idList as $id) {
+                    $objId = stringToObjectId($id);
+                    if ($objId) {
+                        $evaluatedIds[] = objectIdToString($objId);
+                    }
+                }
+            }
+            
+            // Check if admin requesting all teachers (no status filter)
+            $showAll = ($_GET['show_all'] ?? '') === 'true' || ($_GET['show_all'] ?? '') === '1';
+            
+            // Get teachers with appropriate filter
+            if ($showAll) {
+                // Admins: Show ALL teachers
+                $filter = [];
+            } else {
+                // Students/Public: Show only active/available teachers
+                $filter = ['status' => ['$in' => ['active', 'available']]];
+            }
+            
+            $teachers = $teachers_collection->find($filter, [
                 'projection' => [
                     'first_name' => 1, 'last_name' => 1, 'middle_name' => 1,
                     'department' => 1, 'email' => 1, 'status' => 1, 'picture' => 1,
@@ -91,9 +117,10 @@ try {
                 ]
             ])->toArray();
 
-            $formattedTeachers = array_map(function($teacher) {
+            $formattedTeachers = array_map(function($teacher) use ($evaluatedIds) {
+                $teacherId = objectIdToString($teacher['_id']);
                 return [
-                    'id' => objectIdToString($teacher['_id']),
+                    'id' => $teacherId,
                     'first_name' => $teacher['first_name'] ?? '',
                     'last_name' => $teacher['last_name'] ?? '',
                     'middle_name' => $teacher['middle_name'] ?? '',
@@ -103,7 +130,8 @@ try {
                     'picture' => $teacher['picture'] ?? null,
                     'created_at' => isset($teacher['created_at']) ? $teacher['created_at']->toDateTime()->format('Y-m-d H:i:s') : '',
                     'updated_at' => isset($teacher['updated_at']) ? $teacher['updated_at']->toDateTime()->format('Y-m-d H:i:s') : '',
-                    'updated_by' => $teacher['updated_by'] ?? 'system'
+                    'updated_by' => $teacher['updated_by'] ?? 'system',
+                    'is_evaluated' => in_array($teacherId, $evaluatedIds) // Flag for frontend
                 ];
             }, $teachers);
 

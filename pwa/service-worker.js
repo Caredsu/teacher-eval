@@ -4,7 +4,7 @@ const CACHE_NAME = 'teacher-eval-app-v1';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/manifest.json',
+  '/teacher-eval/pwa/manifest.json',
   '/favicon.png'
 ];
 
