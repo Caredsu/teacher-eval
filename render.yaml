@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: teacher-eval
+    runtime: docker
+    region: singapore
+    plan: starter
+    numInstances: 1
+    healthCheckPath: /
+    envVars:
+      - key: PORT
+        value: 8080

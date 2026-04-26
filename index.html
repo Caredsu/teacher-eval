@@ -14,26 +14,11 @@
     This is a placeholder for base href that will be replaced by the value of
     the `--base-href` argument provided to `flutter build`.
   -->
-  <base id="dynamicBaseHref" href="/">
+  <base href="/teacher-eval/">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="A new Flutter project.">
-
-  <!-- Detect and set correct base href for localhost vs Render -->
-  <script>
-    const host = window.location.hostname;
-    const isLocalhost = host === 'localhost' || host === '127.0.0.1' || host.includes('xampp');
-    const baseHref = document.getElementById('dynamicBaseHref');
-    
-    if (isLocalhost) {
-      baseHref.href = '/teacher-eval/';
-      console.log('[Init] Using localhost base: /teacher-eval/');
-    } else {
-      baseHref.href = '/';
-      console.log('[Init] Using Render base: /');
-    }
-  </script>
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
@@ -48,10 +33,10 @@
   <link rel="manifest" href="pwa/manifest.json">
   
   <!-- API Redirect Fix (MUST load before Flutter) -->
-  <script src="pwa/assets/js/api-redirect.js?v=1"></script>
+  <script src="assets/js/api-redirect.js?v=1"></script>
   
   <!-- Teacher Evaluation UI Handler (disable evaluated teachers) -->
-  <script src="pwa/assets/js/teacher-evaluation-ui.js?v=1"></script>
+  <script src="assets/js/teacher-evaluation-ui.js?v=1"></script>
   
   <!-- PWA Intro Modal Styles -->
   <style>
@@ -194,7 +179,7 @@
   <!-- Always show UI - Flutter will handle teacher loading based on evaluation status -->
   
   <!-- Evaluation Status Check Script (MUST run before Flutter app) -->
-  <script src="pwa/eval-status-check.js?v=10"></script>
+  <script src="eval-status-check.js?v=10"></script>
 </head>
 <body>
   <!-- PWA Intro Modal -->
@@ -289,7 +274,7 @@
   <script>
     console.log('[Bootstrap] Loading Flutter...');
     const script = document.createElement('script');
-    script.src = 'pwa/flutter_bootstrap.js';
+    script.src = 'flutter_bootstrap.js';
     script.async = true;
     script.onload = () => console.log('[Bootstrap] flutter_bootstrap.js loaded');
     script.onerror = (e) => console.error('[Bootstrap] flutter_bootstrap.js failed:', e);
