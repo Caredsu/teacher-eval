@@ -1,33 +1,7 @@
 <IfModule mod_rewrite.c">
     RewriteEngine On
+    RewriteBase /
     
-    # Force HTTPS (except for localhost)
-    RewriteCond %{HTTP_HOST} !^localhost [NC]
-    RewriteCond %{HTTP_HOST} !^127\.0\.0\.1 [NC]
-    RewriteCond %{HTTPS} off
-    RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
-    
-    # Dynamic RewriteBase - works for both local (/teacher-eval/) and production (/)
-    RewriteCond %{HTTP_HOST} ^localhost [NC,OR]
-    RewriteCond %{HTTP_HOST} ^127\.0\.0\.1 [NC]
-    RewriteRule ^(.*)$ - [E=REWRITE_BASE:/teacher-eval/]
-    
-    RewriteCond %{ENV:REWRITE_BASE} ^$
-    RewriteRule ^(.*)$ - [E=REWRITE_BASE:/]
-    
-    RewriteBase %{ENV:REWRITE_BASE}
-
-    # Handle OPTIONS requests (preflight)
-    RewriteCond %{REQUEST_METHOD} ^OPTIONS$ [NC]
-    RewriteRule ^(.*)$ - [L]
-
-    # Don't rewrite PWA/static files
-    RewriteCond %{REQUEST_URI} ^/pwa/ [OR]
-    RewriteCond %{REQUEST_URI} ^/assets/ [OR]
-    RewriteCond %{REQUEST_URI} ^/icons/ [OR]
-    RewriteCond %{REQUEST_URI} ^/favicon.png$
-    RewriteRule ^(.*)$ - [L]
-
     # Don't rewrite if it's a real file
     RewriteCond %{REQUEST_FILENAME} -f
     RewriteRule ^(.*)$ - [L]
@@ -35,7 +9,7 @@
     # Don't rewrite if it's a real directory
     RewriteCond %{REQUEST_FILENAME} -d
     RewriteRule ^(.*)$ - [L]
-
+    
     # Route everything else to index.php
     RewriteRule ^(.*)$ index.php?request=$1 [QSA,L]
 </IfModule>
