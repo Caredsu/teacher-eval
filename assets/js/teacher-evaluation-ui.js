@@ -5,14 +5,30 @@
 
 class TeacherEvaluationUIHandler {
     constructor() {
-        this.evaluatedTeachers = this.loadEvaluatedTeachers();
+        this.evaluatedTeachers = {};
         this.observerRunning = false;
+        
+        // Load from modal handler (already has server data)
+        this.loadEvaluatedTeachersFromModal();
     }
 
     /**
-     * Load evaluated teachers from localStorage
+     * Load evaluated teachers from AlreadyEvaluatedModalHandler (server data)
      */
-    loadEvaluatedTeachers() {
+    loadEvaluatedTeachersFromModal() {
+        if (window.alreadyEvaluatedModal && window.alreadyEvaluatedModal.submittedTeachers) {
+            this.evaluatedTeachers = window.alreadyEvaluatedModal.submittedTeachers;
+            console.log('📊 Loaded evaluated teachers from modal:', Object.keys(this.evaluatedTeachers));
+        } else {
+            // Fallback to localStorage
+            this.evaluatedTeachers = this.loadEvaluatedTeachersFromLocalStorage();
+        }
+    }
+
+    /**
+     * Load evaluated teachers from localStorage (FALLBACK ONLY)
+     */
+    loadEvaluatedTeachersFromLocalStorage() {
         try {
             const submitted = localStorage.getItem('teacher_eval_submitted');
             if (!submitted) return {};

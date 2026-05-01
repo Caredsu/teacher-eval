@@ -4,7 +4,7 @@ const CACHE_NAME = 'teacher-eval-app-v1';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/teacher-eval/pwa/manifest.json',
+  '/pwa/manifest.json',
   '/favicon.png'
 ];
 
@@ -46,21 +46,34 @@ self.addEventListener('fetch', (event) => {
 
   // For API calls, always use network (internet required anyway)
   if (url.pathname.includes('/api/') || url.host !== self.location.host) {
-    event.respondWith(fetch(request));
+    event.respondWith(
+      fetch(request).catch(() => {
+        // Network error - return error response
+        return new Response(
+          JSON.stringify({ error: 'Network error' }),
+          { status: 503, statusText: 'Service Unavailable', headers: { 'Content-Type': 'application/json' } }
+        );
+      })
+    );
     return;
   }
 
   // Cache-first strategy for static assets
   event.respondWith(
     caches.match(request).then((response) => {
-      return response || fetch(request).then((response) => {
-        // Cache successful responses
-        if (response && response.status === 200) {
-          const cache = caches.open(CACHE_NAME);
-          cache.then((c) => c.put(request, response.clone()));
+      return response || fetch(request).then((fetchResponse) => {
+        // Cache successful responses - clone BEFORE consuming
+        if (fetchResponse && fetchResponse.status === 200) {
+          const responseClone = fetchResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(request, responseClone);
+          });
         }
-        return response;
+        return fetchResponse;
       });
+    }).catch(() => {
+      // Network error - try cache as fallback
+      return caches.match(request);
     })
   );
 });

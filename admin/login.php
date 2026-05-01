@@ -410,7 +410,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // Service Worker Registration
             if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('/teacher-eval/assets/js/admin-service-worker.js')
+                navigator.serviceWorker.register('assets/js/admin-service-worker.js')
                     .then(registration => console.log('Service Worker registered'))
                     .catch(err => console.log('Service Worker registration failed:', err));
             }

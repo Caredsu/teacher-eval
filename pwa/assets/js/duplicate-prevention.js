@@ -61,12 +61,18 @@ class DuplicatePreventionManager {
     /**
      * Mark teacher as evaluated
      */
-    markTeacherAsEvaluated(teacherId) {
+    markTeacherAsEvaluated(teacherId, teacherName = null) {
         this.submittedTeachers[teacherId] = {
             timestamp: new Date().toISOString(),
-            deviceId: this.deviceId
+            deviceId: this.deviceId,
+            name: teacherName || `Teacher ${teacherId}`
         };
         this.saveSubmittedTeachers();
+        
+        // Update modal handler to reflect new evaluated teacher
+        if (window.alreadyEvaluatedModal) {
+            window.alreadyEvaluatedModal.updateSubmittedTeachers();
+        }
     }
     
     /**
@@ -195,14 +201,15 @@ class DuplicatePreventionManager {
     }
 }
 
-// Global instance
-let duplicatePrevention = null;
+// Global instance - expose to window for access from other scripts
+window.duplicatePrevention = null;
 
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
-    duplicatePrevention = new DuplicatePreventionManager();
+    window.duplicatePrevention = new DuplicatePreventionManager();
     console.log('🛡️ Duplicate Prevention System initialized');
-    console.log('📱 Device ID:', duplicatePrevention.deviceId);
+    console.log('📱 Device ID:', window.duplicatePrevention.deviceId);
+    console.log('✅ Available at: window.duplicatePrevention');
 });
 
 /**

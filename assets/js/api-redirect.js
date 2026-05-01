@@ -5,18 +5,47 @@
  * Must be loaded BEFORE Flutter app initializes
  */
 
+/**
+ * API Redirect Fix + Teacher Filtering
+ * 1. Intercepts ANY IP-based API calls and redirects to relative paths
+ * 2. Filters out already-evaluated teachers from the teachers list
+ * Works on ANY IP/hostname (localhost, 127.0.0.1, any LAN IP, production domain)
+ * Must be loaded BEFORE Flutter app initializes
+ */
+
 (function() {
-    const HARDCODED_IPS = ['192.168.8.33', '127.0.0.1', 'localhost'];
-    const API_BASE = window.location.pathname.split('/').slice(0, -1).join('/'); // /teacher-eval
+    // Get the base path from <base> tag (most reliable)
+    let API_BASE = '/teacher-eval';
+    const baseTag = document.querySelector('base');
+    if (baseTag && baseTag.href) {
+        const basePath = new URL(baseTag.href).pathname;
+        API_BASE = basePath.replace(/\/$/, ''); // Remove trailing slash
+    }
+    
+    console.log('🌐 API Redirect initialized:', {
+        currentHost: window.location.hostname,
+        protocol: window.location.protocol,
+        pathname: window.location.pathname,
+        apiBase: API_BASE,
+        baseTag: baseTag ? baseTag.href : 'not found'
+    });
     
     // Store original fetch
     const originalFetch = window.fetch;
+    window.fetch.__originalFetch__ = originalFetch; // Save for other scripts to use
     
     /**
-     * Get evaluated teacher IDs from localStorage
+     * Get evaluated teacher IDs from window.alreadyEvaluatedModal (already loaded from server)
+     * Falls back to localStorage if modal not available
      */
     function getEvaluatedTeacherIds() {
         try {
+            // Prefer data from modal handler (loaded from server)
+            if (window.alreadyEvaluatedModal && window.alreadyEvaluatedModal.submittedTeachers) {
+                return Object.keys(window.alreadyEvaluatedModal.submittedTeachers);
+            }
+            
+            // Fallback to localStorage
             const submitted = localStorage.getItem('teacher_eval_submitted');
             if (!submitted) return [];
             
@@ -56,19 +85,25 @@
     window.fetch = function(resource, config) {
         let url = typeof resource === 'string' ? resource : resource.url;
         
-        // Check if this is a hardcoded IP request
-        for (const ip of HARDCODED_IPS) {
-            if (url.includes(`http://${ip}/teacher-eval`) || url.includes(`https://${ip}/teacher-eval`)) {
-                // Extract the API path
-                const apiPath = url.replace(/https?:\/\/[^/]+\/teacher-eval/, '');
-                let newUrl = API_BASE + apiPath;
-                
+        // Check if URL is an absolute URL with /teacher-eval path
+        // This catches ANY IP/hostname trying to call the API
+        const absUrlMatch = url.match(/^https?:\/\/([^\/]+)(\/teacher-eval)?(.*)$/i);
+        
+        if (absUrlMatch) {
+            const requestedHost = absUrlMatch[1];
+            const basePath = absUrlMatch[2] || '';
+            const requestPath = absUrlMatch[3];
+            
+            // If it's an absolute URL, convert to relative
+            if (requestPath.includes('/api/')) {
+                let newUrl = API_BASE + requestPath;
                 // Add teacher filter if applicable
                 newUrl = addTeacherFilter(newUrl);
                 
-                console.log('🔄 API Redirect:', {
+                console.log('🔄 API Redirect (any IP → relative):', {
                     from: url,
-                    to: newUrl
+                    to: newUrl,
+                    detectedHost: requestedHost
                 });
                 
                 // Replace the URL
